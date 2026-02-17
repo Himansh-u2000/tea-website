@@ -1,7 +1,7 @@
 import AsyncHandler from "express-async-handler";
-import { ApiError } from "../util/ApiError";
-import { ApiResponse } from "../util/ApiResponse";
-import { Post } from "../models/post.model";
+import { ApiError } from "../util/ApiError.js";
+import { ApiResponse } from "../util/ApiResponse.js";
+import { Post } from "../models/post.model.js";
 
 
 // only for Admin Routes
