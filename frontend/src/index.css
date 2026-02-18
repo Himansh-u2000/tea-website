@@ -1,0 +1,169 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased;
+    background-color: #0B0B1E;
+    color: #FDFBF0;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background: rgba(212, 168, 71, 0.3);
+    color: #FFF9E6;
+  }
+}
+
+@layer components {
+
+  /* ─── Luxury Glass Card ─── */
+  .glass-card {
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.85) 0%, rgba(11, 11, 30, 0.9) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(212, 168, 71, 0.12);
+    border-radius: 1.25rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(212, 168, 71, 0.06);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-500;
+  }
+
+  .glass-card-hover:hover {
+    border-color: rgba(212, 168, 71, 0.25);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(212, 168, 71, 0.08), inset 0 1px 0 rgba(212, 168, 71, 0.1);
+    transform: translateY(-3px);
+  }
+
+  /* ─── Skeleton Loader ─── */
+  .skeleton {
+    @apply animate-shimmer rounded;
+    background: linear-gradient(90deg, #1A1A2E 0%, #0E0E22 50%, #1A1A2E 100%);
+    background-size: 1000px 100%;
+  }
+
+  /* ─── Glow Effects ─── */
+  .glow-gold {
+    box-shadow: 0 0 25px rgba(212, 168, 71, 0.4), 0 0 50px rgba(212, 168, 71, 0.15);
+  }
+
+  /* ─── Button Styles ─── */
+  .btn-luxury {
+    @apply font-semibold py-3 px-6 rounded-xl transition-all duration-300 active:scale-95;
+    background: linear-gradient(135deg, #D4A847 0%, #B8922E 100%);
+    color: #0B0B1E;
+    box-shadow: 0 4px 20px rgba(212, 168, 71, 0.25);
+  }
+
+  .btn-luxury:hover {
+    box-shadow: 0 6px 30px rgba(212, 168, 71, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .btn-outline-gold {
+    @apply font-semibold py-3 px-6 rounded-xl transition-all duration-300 active:scale-95;
+    border: 1.5px solid rgba(212, 168, 71, 0.4);
+    color: #D4A847;
+  }
+
+  .btn-outline-gold:hover {
+    background: rgba(212, 168, 71, 0.1);
+    border-color: #D4A847;
+  }
+
+  .btn-ghost {
+    @apply font-semibold py-3 px-6 rounded-xl transition-all duration-300 active:scale-95;
+    color: rgba(253, 251, 240, 0.6);
+  }
+
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(253, 251, 240, 0.9);
+  }
+
+  /* ─── Input Styles ─── */
+  .input-field {
+    @apply w-full rounded-xl px-4 py-3.5 transition-all duration-300;
+    background: rgba(26, 26, 46, 0.6);
+    border: 1px solid rgba(212, 168, 71, 0.1);
+    color: #FDFBF0;
+  }
+
+  .input-field::placeholder {
+    color: rgba(253, 251, 240, 0.3);
+  }
+
+  .input-field:focus {
+    outline: none;
+    border-color: rgba(212, 168, 71, 0.4);
+    box-shadow: 0 0 0 3px rgba(212, 168, 71, 0.08), 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  /* ─── Card Hover Effect ─── */
+  .card-hover {
+    @apply transition-all duration-500;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 15px rgba(212, 168, 71, 0.06);
+  }
+
+  /* ─── Divider ─── */
+  .divider-gold {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(212, 168, 71, 0.25) 50%, transparent 100%);
+  }
+
+  /* ─── Floating Animation ─── */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  /* ─── Upload Status Badges ─── */
+  .upload-badge-pending {
+    @apply text-xs px-2 py-0.5 rounded-full;
+    background: rgba(212, 168, 71, 0.15);
+    color: #D4A847;
+  }
+
+  .upload-badge-done {
+    @apply text-xs px-2 py-0.5 rounded-full;
+    background: rgba(76, 175, 80, 0.15);
+    color: #66BB6A;
+  }
+
+  .upload-badge-error {
+    @apply text-xs px-2 py-0.5 rounded-full;
+    background: rgba(239, 83, 80, 0.15);
+    color: #EF5350;
+  }
+}
+
+@layer utilities {
+  .text-gold {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #D4A847 0%, #F5E1C1 50%, #D4A847 100%);
+  }
+
+  .text-gradient-luxury {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #D4A847 0%, #B8922E 100%);
+  }
+
+  .backdrop-blur-glass {
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .font-display {
+    font-family: 'Playfair Display', serif;
+  }
+}

@@ -19,7 +19,7 @@ const generateAccessAndRefreshToken = (email, username, _id) => {
 }
 
 const createUser = asyncHandler(async (req, res) => {
-  const { fullName, email, password, username, lat, lng } = req.body;
+  const { fullName, email, password, username, gender, lat, lng } = req.body;
 
   if (!fullName || !username || !email || !password || [fullName, email, password, username].some((field) => field.trim() === "")) {
     return res.status(400).json(new ApiResponse(400, null, "input fields are missing"))
@@ -27,7 +27,7 @@ const createUser = asyncHandler(async (req, res) => {
 
   try {
     const existingUser = await User.findOne({ email: email });
-    if (existingUser) return res.status(400).json("user already exists")
+    if (existingUser) return res.status(400).json(new ApiResponse(400, null, "user already exists"))
   } catch (error) {
     throw new ApiError(500, "Existing user", error)
   }
@@ -62,20 +62,19 @@ const createUser = asyncHandler(async (req, res) => {
 
   try {
     const user = await User.create({
-      email, username, fullName, password: hashPassword,
+      email, username, fullName, password: hashPassword, gender,
       location: lat && lng ? {
         type: "Point",
-        coordinates: [lng, lat]
+        coordinates: [parseFloat(lng), parseFloat(lat)]
       } : undefined,
       locationPermission: !!(lat && lng)
     })
 
     if (!user) res.status(500).json("Error while creating user")
 
-    const token = generateAccessAndRefreshToken(username, email, user._id)
+    const token = generateAccessAndRefreshToken(email, username, user._id)
 
-    user.refreshToken = token.refreshToken;
-    await user.save();
+    await User.updateOne({ _id: user._id }, { $set: { refreshToken: token.refreshToken } });
 
     return res.status(201).json(new ApiResponse(201, token, "User created Successfully"))
   } catch (error) {
@@ -96,14 +95,14 @@ const login = asyncHandler(async (req, res) => {
 
     const match = await bcrypt.compare(password, existingUser.password);
     if (match) {
-      const token = generateAccessAndRefreshToken(email, existingUser.username);
-      existingUser.refreshToken = token.refreshToken;
-      await existingUser.save();
+      const token = generateAccessAndRefreshToken(email, existingUser.username, existingUser._id);
+      await User.updateOne({ _id: existingUser._id }, { $set: { refreshToken: token.refreshToken } });
       return res.status(200).json(new ApiResponse(200, token, "user login sucessfully"));
     } else {
       return res.status(401).json(new ApiResponse(401, null, "unauthorized access"));
     }
   } catch (error) {
+    console.error('LOGIN ERROR:', error);
     throw new ApiError(500, `error while login`, error);
   }
 })

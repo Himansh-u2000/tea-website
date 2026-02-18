@@ -15,7 +15,7 @@ const verifyJWT = AsyncHandler(async (req, res, next) => {
     if (!decodedToken) return res.status(401).json(new ApiResponse(401, null, "Access Token Expired"))
     next()
   } catch (error) {
-    throw new ApiError(500, "Error while Verifying JWT", error)
+    return res.status(401).json(new ApiResponse(401, null, "Invalid or expired token"));
   }
 })
 
