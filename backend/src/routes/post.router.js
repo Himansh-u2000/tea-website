@@ -15,7 +15,7 @@ postRouter.get("/post?url", fetchPostByURL) //correct
 postRouter.post("/create-post", verifyJWT, createPost) //correct
 postRouter.post("/delete-post", verifyJWT, deletePostById) //correct
 
-postRouter.get("/all-posts", verifyJWT, fetchAllPostOfUser)
+postRouter.post("/all-posts", verifyJWT, fetchAllPostOfUser)
 
 postRouter.post("/:id", verifyJWT, clapPost) //correct
 

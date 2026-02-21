@@ -1,60 +1,42 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 
-const Input = ({
-    label,
-    type = 'text',
-    value,
-    onChange,
-    error,
-    icon: Icon,
-    placeholder,
-    className = '',
-    disabled = false,
-    required = false,
-    ...props
-}) => {
-    const [isFocused, setIsFocused] = useState(false);
+const Input = ({ label, error, icon: Icon, type = 'text', className = '', ...props }) => {
+    const [focused, setFocused] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+
+    const isPassword = type === 'password';
+    const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
     return (
-        <div className={`relative ${className}`}>
+        <div className={`space-y-1.5 ${className}`}>
             {label && (
-                <label
-                    className={`block mb-2 text-sm font-medium tracking-wide transition-colors duration-200 ${error ? 'text-red-400' : isFocused ? 'text-gold-400' : 'text-ivory-400'
-                        }`}
-                >
-                    {label} {required && <span className="text-gold-500">*</span>}
+                <label className="block text-sm font-medium text-gray-400 pl-1">
+                    {label}
                 </label>
             )}
-
             <div className="relative">
                 {Icon && (
-                    <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${isFocused ? 'text-gold-500' : 'text-ivory-500/40'}`}>
-                        <Icon size={18} />
-                    </div>
+                    <Icon className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-200 ${focused ? 'text-accent' : 'text-muted'}`} />
                 )}
-
-                <motion.input
-                    type={type}
-                    value={value}
-                    onChange={onChange}
-                    placeholder={placeholder}
-                    disabled={disabled}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    className={`input-field ${Icon ? 'pl-12' : ''} ${error ? 'border-red-500/50 focus:border-red-500' : ''} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                <input
+                    type={inputType}
+                    className={`input-dark py-3 ${Icon ? 'pl-10' : 'pl-4'} ${isPassword ? 'pr-12' : 'pr-4'} ${error ? 'border-red-500/50 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.1)]' : ''}`}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
                     {...props}
                 />
+                {isPassword && (
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white transition-colors text-xs font-medium"
+                    >
+                        {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                )}
             </div>
-
             {error && (
-                <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-2 text-xs text-red-400 flex items-center gap-1.5"
-                >
-                    <span className="w-1 h-1 bg-red-400 rounded-full" /> {error}
-                </motion.p>
+                <p className="text-red-400 text-xs pl-1">{error}</p>
             )}
         </div>
     );

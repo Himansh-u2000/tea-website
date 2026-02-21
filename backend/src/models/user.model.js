@@ -37,16 +37,20 @@ const userSchema = new mongoose.Schema({
     type: Schema.Types.ObjectId,
     ref: "Subscription"
   },
-  governmentIdType: {
-    type: String,
-    enum: ["DL", "aadhar"]
-  },
   posts: {
     type: [{ type: Schema.Types.ObjectId, ref: "post" }],
     min: 0
   },
+  governmentIdType: {
+    type: String,
+    enum: ["DL", "aadhar"]
+  },
   governmentIdNumber: {
-    type: String
+    type: String,
+    min: 4
+  },
+  governmentIdImage: {
+    type: String,
   },
   status: {
     type: String,
@@ -73,7 +77,6 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  address: String,
   district: String,
   state: String
 }, {

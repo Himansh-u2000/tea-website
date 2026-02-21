@@ -1,6 +1,10 @@
-import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 const subscriptionScehma = new mongoose.Schema({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: "User"
+  },
   startDate: {
     type: String,
     required: true

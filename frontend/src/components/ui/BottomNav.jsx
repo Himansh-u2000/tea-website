@@ -1,57 +1,65 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { HiHome, HiSearch, HiPlusCircle, HiLocationMarker, HiUser } from 'react-icons/hi';
 import { motion } from 'framer-motion';
+import { HiHome, HiSearch, HiPlusCircle, HiLocationMarker, HiUser } from 'react-icons/hi';
+
+const navItems = [
+    { path: '/', icon: HiHome, label: 'Home' },
+    { path: '/find', icon: HiSearch, label: 'Find' },
+    { path: '/create', icon: HiPlusCircle, label: '', special: true },
+    { path: '/recommended', icon: HiLocationMarker, label: 'Nearby' },
+    { path: '/profile', icon: HiUser, label: 'Profile' },
+];
 
 const BottomNav = () => {
     const location = useLocation();
 
-    const navItems = [
-        { path: '/', icon: HiHome, label: 'Home' },
-        { path: '/find', icon: HiSearch, label: 'Find' },
-        { path: '/create', icon: HiPlusCircle, label: 'Create', special: true },
-        { path: '/recommended', icon: HiLocationMarker, label: 'Nearby' },
-        { path: '/profile', icon: HiUser, label: 'Profile' },
-    ];
-
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe">
-            <div className="glass-card rounded-t-3xl border-t border-gold-700/20 px-4 py-3">
-                <div className="flex items-center justify-around max-w-lg mx-auto">
+        <nav className="fixed bottom-5 left-4 right-4 z-50">
+            <div className="max-w-md mx-auto">
+                <div className="flex items-center justify-around py-2 px-2 rounded-2xl"
+                    style={{
+                        background: 'rgba(20, 20, 22, 0.85)',
+                        backdropFilter: 'blur(20px) saturate(180%)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                        border: '1px solid rgba(42, 42, 46, 0.6)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                    }}
+                >
                     {navItems.map(({ path, icon: Icon, label, special }) => {
                         const isActive = location.pathname === path;
 
                         if (special) {
                             return (
-                                <NavLink key={path} to={path} className="relative -mt-8">
+                                <NavLink key={path} to={path} className="relative -mt-5">
                                     <motion.div
-                                        className="w-16 h-16 bg-gradient-luxury rounded-full flex items-center justify-center shadow-gold-lg glow-gold"
+                                        whileHover={{ scale: 1.1 }}
                                         whileTap={{ scale: 0.9 }}
-                                        whileHover={{ scale: 1.08 }}
+                                        className="w-12 h-12 rounded-full flex items-center justify-center shadow-glow"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #ff6b35, #ff3d7f)',
+                                        }}
                                     >
-                                        <Icon className="w-7 h-7 text-obsidian-400" />
+                                        <Icon className="w-6 h-6 text-white" />
                                     </motion.div>
                                 </NavLink>
                             );
                         }
 
                         return (
-                            <NavLink key={path} to={path} className="relative flex-1 flex flex-col items-center gap-1 py-2">
-                                <motion.div className="relative" whileTap={{ scale: 0.9 }}>
-                                    <Icon
-                                        className={`w-5 h-5 transition-colors duration-300 ${isActive ? 'text-gold-500' : 'text-ivory-500/30'}`}
-                                    />
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="bottomNav"
-                                            className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-gold-500 rounded-full"
-                                            initial={false}
-                                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                                        />
-                                    )}
+                            <NavLink key={path} to={path} className="relative flex flex-col items-center gap-0.5 px-3 py-1.5">
+                                <motion.div whileTap={{ scale: 0.85 }}>
+                                    <Icon className={`w-5 h-5 transition-colors duration-200 ${isActive ? 'text-accent' : 'text-muted'}`} />
                                 </motion.div>
-                                <span className={`text-[10px] tracking-wider uppercase transition-colors duration-300 ${isActive ? 'text-gold-500 font-semibold' : 'text-ivory-500/25'}`}>
+                                <span className={`text-[10px] font-medium transition-colors duration-200 ${isActive ? 'text-accent' : 'text-muted'}`}>
                                     {label}
                                 </span>
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="navIndicator"
+                                        className="absolute -bottom-1 w-1 h-1 rounded-full bg-accent"
+                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                    />
+                                )}
                             </NavLink>
                         );
                     })}

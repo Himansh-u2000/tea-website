@@ -6,6 +6,7 @@ import { postRouter } from "./routes/post.router.js";
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import cors from "cors"
 import rateLimit from "express-rate-limit"
+import { paymentRouter } from "./routes/payment.route.js";
 
 const app = express();
 const port = PORT || 5000;
@@ -35,6 +36,7 @@ app.use(limiter)
 app.use("/api/user", authRouter)
 
 app.use("/api/posts/", postRouter);
+app.use("/api/subscription", paymentRouter)
 
 app.get("/api/health", (_, res) => {
     res.send("Server is running healthy")

@@ -75,7 +75,7 @@ const createPost = AsyncHandler(async (req, res) => {
 const fetchActivePosts = AsyncHandler(async (req, res) => {
   try {
     const posts = await Post.find({ isActive: true });
-    if (posts.length < 1) return res.status(500).json(new ApiResponse(400, null, "error while fetching posts"))
+    if (!posts) return res.status(404).json(new ApiResponse(404, null, "posts not found"))
 
     return res.status(200).json(new ApiResponse(200, posts, "Posts Fetched Successfully"))
   } catch (error) {
@@ -120,20 +120,6 @@ const fetchRecommendedPost = AsyncHandler(async (req, res) => {
 
   if (!lat || !lng) return res.status(401).json(new ApiResponse(400, null, "lat and lng required"))
   try {
-    // const posts = await Post.aggregate([
-    //   {
-    //     $geoNear: {
-    //       near: {
-    //         type: "point", coordinates: [lat, lng],
-    //       },
-    //       distanceField: "dist.calculated",
-    //       // minDistance: 0,
-    //       // maxDistance: 10000,
-    //       includeLocs: "dist.location",
-    //       spherical: true
-    //     }
-    //   }
-    // ])
 
     const posts = await Post.find({
       location: {
@@ -147,7 +133,8 @@ const fetchRecommendedPost = AsyncHandler(async (req, res) => {
       }
     })
 
-    if (posts.length < 0) return res.status(404).json(new ApiResponse(404, null, "No Posts Found or Error in Searching"));
+    if (!posts) return res.status(404).json(new ApiResponse(404, null, "error in searching"))
+    if (posts.length === 0) return res.status(404).json(new ApiResponse(404, null, "No Posts Found"));
 
     return res.status(200).json(new ApiResponse(200, posts, "Posts fetched succesfully"))
   } catch (error) {
@@ -183,6 +170,11 @@ const deletePostById = AsyncHandler(async (req, res) => {
   const { id } = req.body;
   if (!id) return res.status(400).json(new ApiResponse(400, null, "post id not passed"))
   try {
+    const post = await Post.findById(id);
+    if (!post) return res.status(404).json(new ApiResponse(404, null, "post not found"))
+
+    if (post.createdBy !== req.user.id) return res.status(401).json(new ApiResponse(401, null, "Unauthorized"))
+
     const posts = await Post.findByIdAndDelete(id);
     if (!posts) return res.status(404).json(new ApiResponse(404, null, "post not found"))
 
@@ -191,7 +183,6 @@ const deletePostById = AsyncHandler(async (req, res) => {
     throw new ApiError(500, "error while fetching posts", error)
   }
 })
-
 
 // will not implement this. Will be feature
 const deleteAllUserPost = AsyncHandler(async (req, res) => {

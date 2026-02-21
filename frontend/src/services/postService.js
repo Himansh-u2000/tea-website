@@ -11,16 +11,12 @@ export const getPostByUrl = async (postUrl) => {
 };
 
 export const getUserPosts = async (userId) => {
-    const response = await api.get('/posts/all-posts', {
-        data: { userId },
-    });
+    const response = await api.post('/posts/all-posts', { userId });
     return response.data;
 };
 
 export const getRecommendedPosts = async (lat, lng) => {
-    const response = await api.get('/posts/recommended', {
-        data: { lat, lng },
-    });
+    const response = await api.post('/posts/recommended', { lat, lng });
     return response.data;
 };
 

@@ -3,9 +3,10 @@ import { ApiResponse } from "../util/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
-import { ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET } from "../conf/index.js";
+import { ACCESS_TOKEN_SECRET, OAUTH_CLIENT_ID, OAUTH_SECRET, REFRESH_TOKEN_SECRET } from "../conf/index.js";
 import { ApiError } from "../util/ApiError.js";
 import axios from "axios"
+import { google } from 'googleapis'
 
 const generateAccessAndRefreshToken = (email, username, _id) => {
   const refreshToken = jwt.sign({ email, username, _id }, REFRESH_TOKEN_SECRET, { expiresIn: "5d" });
@@ -67,7 +68,8 @@ const createUser = asyncHandler(async (req, res) => {
         type: "Point",
         coordinates: [parseFloat(lng), parseFloat(lat)]
       } : undefined,
-      locationPermission: !!(lat && lng)
+      locationPermission: !!(lat && lng), district: finalCity,
+      state: finalRegion
     })
 
     if (!user) res.status(500).json("Error while creating user")
@@ -107,11 +109,80 @@ const login = asyncHandler(async (req, res) => {
   }
 })
 
-const oAuthLogin = () => {
+const oAuthLogin = asyncHandler(async (req, res) => {
+  const oauth2Client = new google.auth.OAuth2(OAUTH_CLIENT_ID, OAUTH_SECRET, "postmessage")
 
-}
+  const { code, lat, lng } = req.query;
+  if (!code) return res.status(404).json(new ApiResponse(404, null, "code not present in quesry"))
+  const response = oauth2Client.getToken(code)
+
+  oauth2Client.setCredentials(response.tokens)
+
+  const userRes = await axios.get(`https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${response.tokens.accessToken}`)
+
+  const { name, email, picture, gender } = userRes.data;
+
+  try {
+    // find user if already exists otherwise create user
+    let user = await User.findOne({ email })
+    if (!user) {
+      // check for lat and lng
+
+      let finalRegion;
+      let finalCity;
+      if (lat && lng) {
+        const geoRes = await axios.get(
+          `https://nominatim.openstreetmap.org/reverse`,
+          {
+            params: {
+              lat,
+              lon: lng,
+              format: "json"
+            }
+          }
+        );
+
+        finalCity =
+          geoRes.data.address.city ||
+          geoRes.data.address.town ||
+          geoRes.data.address.village ||
+          "no city";
+
+        finalRegion =
+          geoRes.data.address.state || "no region";
+      }
+
+      // create new user
+      user = await User.create({
+        fullName: name, email, profilePhoto: picture || "", username: Math.random().toString(36), gender,
+        location: lat && lng ? {
+          type: "Point",
+          coordinates: [parseFloat(lng), parseFloat(lat)]
+        } : undefined,
+        locationPermission: !!(lat && lng), district: finalCity, state: finalRegion
+      })
+
+      if (!user) return res.status(500).json(new ApiResponse(500, null, "Error while creating new user"))
+
+      const token = generateAccessAndRefreshToken(email, user.username, user._id)
+      user.refreshToken = token.refreshToken;
+      await user.save()
+      return res.status(201).json(new ApiResponse(201, token, "User Created Successfully"))
+    } else {
+      const token = generateAccessAndRefreshToken(email, user.username, user._id)
+      // update user data
+      user.profilePhoto = response.photo;
+      user.refreshToken = token.refreshToken;
+      await user.save();
+      return res.status(200).json(new ApiResponse(200, token, "user login successfully throgh oauth"))
+    }
+  } catch (error) {
+    throw new ApiError(500, "Error in oauth ", error)
+  }
+})
 
 export {
   createUser,
-  login
+  login,
+  oAuthLogin
 }

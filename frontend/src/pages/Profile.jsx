@@ -1,88 +1,163 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { HiLogout } from 'react-icons/hi';
-import { useAuth } from '../context/AuthContext';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { HiLogout, HiTrash } from 'react-icons/hi';
 import PostCard from '../components/post/PostCard';
-import { PostCardSkeleton } from '../components/ui/Skeleton';
+import { PostCardSkeleton, ProfileSkeleton } from '../components/ui/Skeleton';
 import BottomNav from '../components/ui/BottomNav';
-import { getAllPosts } from '../services/postService';
+import Button from '../components/ui/Button';
+import { useAuth } from '../context/AuthContext';
+import { getUserPosts, clapPost, deletePost } from '../services/postService';
 
 const Profile = () => {
     const { user, logout } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { scrollY } = useScroll();
+
+    const headerScale = useTransform(scrollY, [0, 150], [1, 0.97]);
+    const headerOpacity = useTransform(scrollY, [0, 150], [1, 0.8]);
 
     useEffect(() => {
-        const fetchUserPosts = async () => {
-            try {
-                const response = await getAllPosts();
-                const userPosts = (response.data || []).filter(p => p.createdBy?._id === user?.id || p.createdBy === user?.id);
-                setPosts(userPosts);
-            } catch (_) { }
-            finally { setLoading(false); }
-        };
-        fetchUserPosts();
+        if (user) fetchPosts();
     }, [user]);
 
-    const stats = [
-        { label: 'Posts', value: posts.length },
-        { label: 'Claps', value: posts.reduce((sum, p) => sum + (p.clap || 0), 0) },
-    ];
+    const fetchPosts = async () => {
+        try {
+            const response = await getUserPosts(user?.id || user?._id);
+            setPosts(response.data || []);
+        } catch (error) {
+            console.log('Error fetching posts:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleClap = async (postUrl) => {
+        try {
+            await clapPost(postUrl, user?.id || user?._id);
+            setPosts(posts.map(p => p.postUrl === postUrl ? { ...p, clap: (p.clap || 0) + 1 } : p));
+        } catch (_) { }
+    };
+
+    const handleDelete = async (postId) => {
+        if (!confirm('Delete this post?')) return;
+        try {
+            await deletePost(postId);
+            setPosts(posts.filter(p => p._id !== postId));
+        } catch (error) {
+            console.log('Delete error:', error);
+        }
+    };
+
+    const handleLogout = () => {
+        logout();
+    };
 
     return (
-        <div className="min-h-screen pb-24">
-            {/* Header */}
-            <header className="sticky top-0 z-40 glass-card border-b border-gold-700/10 px-4 py-4">
-                <div className="max-w-2xl mx-auto flex items-center justify-between">
-                    <h1 className="text-xl font-display font-bold text-gold">Profile</h1>
-                    <button onClick={logout} className="flex items-center gap-2 text-sm text-ivory-500/30 hover:text-red-400 transition-colors">
-                        <HiLogout className="w-4 h-4" /> Logout
-                    </button>
-                </div>
-            </header>
+        <div className="min-h-screen pb-28">
+            {/* Profile Header with parallax */}
+            <motion.header
+                className="relative px-5 pt-12 pb-6 overflow-hidden"
+                style={{ scale: headerScale, opacity: headerOpacity }}
+            >
+                <div className="orb orb-accent w-48 h-48 -top-16 -right-16 animate-float" />
+                <div className="orb orb-warm w-32 h-32 bottom-0 left-0 animate-float-delay" />
 
-            <div className="max-w-2xl mx-auto px-4 mt-6 space-y-6">
-                {/* Profile Card */}
-                <motion.div
-                    className="glass-card p-8 text-center"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <div className="w-20 h-20 mx-auto rounded-full bg-gradient-luxury flex items-center justify-center text-obsidian-400 text-2xl font-display font-bold shadow-gold mb-4">
-                        {user?.username?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <h2 className="text-xl font-display font-semibold text-ivory-100 mb-1">{user?.username || 'Unknown'}</h2>
-                    <p className="text-ivory-500/25 text-sm mb-6">{user?.email}</p>
-
-                    <div className="flex justify-center gap-8">
-                        {stats.map(stat => (
-                            <div key={stat.label} className="text-center">
-                                <p className="text-2xl font-bold text-gold-500">{stat.value}</p>
-                                <p className="text-xs text-ivory-500/25 uppercase tracking-wider mt-1">{stat.label}</p>
+                <div className="relative z-10 max-w-2xl mx-auto">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                            {/* Avatar */}
+                            <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white"
+                                style={{ background: 'linear-gradient(135deg, #ff6b35, #ff3d7f)' }}
+                            >
+                                {(user?.username || '?')[0]?.toUpperCase()}
                             </div>
-                        ))}
-                    </div>
-                </motion.div>
-
-                {/* User Posts */}
-                <div>
-                    <h3 className="text-sm uppercase tracking-widest text-ivory-500/25 mb-4 px-1">Your Posts</h3>
-                    <div className="space-y-4">
-                        {loading ? (
-                            [...Array(2)].map((_, i) => <PostCardSkeleton key={i} />)
-                        ) : posts.length === 0 ? (
-                            <div className="glass-card p-12 text-center">
-                                <p className="text-ivory-500/30 text-sm">No posts yet. Start creating!</p>
+                            <div>
+                                <h1 className="text-xl font-display font-bold text-white">
+                                    {user?.fullName || user?.username || 'User'}
+                                </h1>
+                                <p className="text-muted text-sm">@{user?.username || 'anonymous'}</p>
                             </div>
-                        ) : (
-                            posts.map((post, i) => (
-                                <div key={post._id || i} data-post-card>
-                                    <PostCard post={post} />
-                                </div>
-                            ))
-                        )}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={handleLogout}>
+                            <HiLogout className="w-4 h-4" />
+                        </Button>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex gap-4">
+                        <div className="glass-card flex-1 py-3 text-center">
+                            <motion.p
+                                className="text-xl font-bold text-gradient"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                            >
+                                {posts.length}
+                            </motion.p>
+                            <p className="text-muted text-xs mt-0.5">Posts</p>
+                        </div>
+                        <div className="glass-card flex-1 py-3 text-center">
+                            <motion.p
+                                className="text-xl font-bold text-gradient"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                            >
+                                {posts.reduce((sum, p) => sum + (p.clap || 0), 0)}
+                            </motion.p>
+                            <p className="text-muted text-xs mt-0.5">Claps</p>
+                        </div>
+                        <div className="glass-card flex-1 py-3 text-center">
+                            <motion.p
+                                className="text-xl font-bold text-gradient"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.4 }}
+                            >
+                                {user?.city || '—'}
+                            </motion.p>
+                            <p className="text-muted text-xs mt-0.5">City</p>
+                        </div>
                     </div>
                 </div>
+            </motion.header>
+
+            {/* User's posts */}
+            <div className="max-w-2xl mx-auto px-4 space-y-4 mt-2">
+                <h2 className="text-sm font-medium text-muted uppercase tracking-wider px-1">Your Posts</h2>
+
+                {loading ? (
+                    [...Array(2)].map((_, i) => <PostCardSkeleton key={i} />)
+                ) : posts.length === 0 ? (
+                    <motion.div
+                        className="glass-card p-10 text-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                    >
+                        <span className="text-3xl block mb-3">✨</span>
+                        <p className="text-white font-medium mb-1">No posts yet</p>
+                        <p className="text-muted text-sm">Time to spill some tea!</p>
+                    </motion.div>
+                ) : (
+                    posts.map((post, i) => (
+                        <motion.div
+                            key={post._id || i}
+                            className="relative"
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                        >
+                            <PostCard post={post} onClap={handleClap} />
+                            <button
+                                onClick={() => handleDelete(post._id)}
+                                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-dark-200/80 flex items-center justify-center text-muted hover:text-red-400 hover:bg-red-500/10 transition-all"
+                            >
+                                <HiTrash className="w-3.5 h-3.5" />
+                            </button>
+                        </motion.div>
+                    ))
+                )}
             </div>
 
             <BottomNav />

@@ -39,12 +39,15 @@ const postSchema = new mongoose.Schema({
   location: {
     type: {
       type: String,
-      enum: ["Point"],
-      // default: "Point"
+      enum: ["Point"]
     },
     coordinates: {
       type: [Number], // [longitude, latitude]
     }
+  },
+  comment: {
+    type: Schema.Types.ObjectId,
+    ref: "Comment"
   },
   region: {
     type: String,

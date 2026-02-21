@@ -57,3 +57,8 @@ export const getVerificationStatus = async () => {
     const response = await api.get('/user/verification-status');
     return response.data;
 };
+
+export const googleLogin = async (code, lat, lng) => {
+    const response = await api.get(`/user/oauth?code=${code}&lat=${lat || ''}&lng=${lng || ''}`);
+    return response.data;
+};
