@@ -11,12 +11,12 @@ export const getPostByUrl = async (postUrl) => {
 };
 
 export const getUserPosts = async (userId) => {
-    const response = await api.post('/posts/all-posts', { userId });
+    const response = await api.get('/posts/all-posts', { params: { userId } });
     return response.data;
 };
 
 export const getRecommendedPosts = async (lat, lng) => {
-    const response = await api.post('/posts/recommended', { lat, lng });
+    const response = await api.get('/posts/recommended', { params: { lat, lng } });
     return response.data;
 };
 
@@ -25,8 +25,8 @@ export const createPost = async (postData) => {
     return response.data;
 };
 
-export const clapPost = async (postUrl, userId) => {
-    const response = await api.post(`/posts/${postUrl}`, { userId });
+export const clapPost = async (postId, userId) => {
+    const response = await api.post(`/posts/${postId}`, { userId });
     return response.data;
 };
 

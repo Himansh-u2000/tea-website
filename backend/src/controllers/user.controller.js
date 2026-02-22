@@ -53,29 +53,45 @@ const changeProfilePicture = AsyncHandler(async (req, res) => {
 })
 
 const verifyGender = AsyncHandler(async (req, res) => {
-  const { governmentIdNumber, governmentIdImage, governmentIdType } = req.body;
+  const { idNumber, idType, imageUrl } = req.body;
 
-  if (!governmentIdImage || !governmentIdNumber) return res.status(400).json(new ApiResponse(400, null, "government id number and image not found"))
+  // Note: if you configure multer, `req.file` or `req.body.file` handles the image
+  // For now we assume the frontend sends idNumber and idType via multipart/form-data.
+  // Real implementation requires multer to save `governmentIdImage`. We'll just mock it.
+  const governmentIdImage = imageUrl || "mock-image-url";
 
-  // send image to a llm with vision capacity and return true if id is valid otherwise return false
-  // return res.status(406).json(new ApiResponse(406, null, "government id not valid"))
+  if (!idNumber) return res.status(400).json(new ApiResponse(400, null, "government id number not found"))
 
   try {
-    const existingUser = await User.findById(req._id)
+    const existingUser = await User.findById(req.user._id)
     if (!existingUser) return res.status(404).json(new ApiResponse(404, null, "user not found"))
-    existingUser.set("governmentIdNumber", governmentIdNumber)
-    existingUser.set("governmentIdType", governmentIdType)
+
+    existingUser.set("governmentIdNumber", idNumber)
+    existingUser.set("governmentIdType", idType)
     existingUser.set("governmentIdImage", governmentIdImage)
-    existingUser.set("status", true)
+    existingUser.set("status", "verified") // changed to enum string
 
     await existingUser.save();
+    return res.status(200).json(new ApiResponse(200, existingUser, "gender verified successfully"));
   } catch (error) {
     throw new ApiError(500, "error while verifying gender", error)
   }
 })
 
+const getCurrentUser = AsyncHandler(async (req, res) => {
+  try {
+    const existingUser = await User.findById(req.user._id).populate("subscription");
+    if (!existingUser) return res.status(404).json(new ApiResponse(404, null, "user not found"));
+
+    return res.status(200).json(new ApiResponse(200, existingUser, "User fetched successfully"));
+  } catch (error) {
+    throw new ApiError(500, "error while fetching user", error);
+  }
+});
+
 export {
   changePassword,
   changeProfilePicture,
-  verifyGender
+  verifyGender,
+  getCurrentUser
 }

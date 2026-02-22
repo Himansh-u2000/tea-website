@@ -16,10 +16,6 @@ const commentScehma = new mongoose.Schema({
         ref: "Post",
         required: true
     },
-    clap: {
-        type: Number,
-        min: 0,
-    },
     clappedBy: {
         type: [{ type: Schema.Types.ObjectId, ref: "User" }]
     },

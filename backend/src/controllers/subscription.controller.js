@@ -10,7 +10,7 @@ const isSubscriptionActive = AsyncHandler(async (req, res) => {
   const { userId } = req.body;
 
   if (!userId) return res.status(400).json(new ApiResponse(400, null, "user id is necessary"))
-  // if (userId !== req._id) return res.status(401).json(new ApiResponse(401, null, "unauthorized"))
+  // if (userId !== req.user._id) return res.status(401).json(new ApiResponse(401, null, "unauthorized"))
   try {
     const existingUser = await User.findById(userId);
 
@@ -25,53 +25,91 @@ const isSubscriptionActive = AsyncHandler(async (req, res) => {
 
 // not implemented
 const subscribeSubscription = AsyncHandler(async (req, res) => {
-  const { userId, productId } = req.body;
+  const { userId, priceId } = req.body;
   if (!userId) return res.status(400).json(new ApiResponse(400, null, "user id is required"))
 
-  if (req._id !== userId) return res.status(401).json(new ApiResponse(401, null, "user unauthorized"))
+  if (req.user._id !== userId) return res.status(401).json(new ApiResponse(401, null, "user unauthorized"))
 
   try {
-    const existingUser = await User.findById(userId)
+    const existingUser = await User.findById(userId).populate("subscription");
     if (!existingUser) return res.status(404).json(new ApiResponse(404, null, "user not found"))
 
     // call stript to integrate payment
-    const price = 10;
-    if (!productId) return res.status(400).json(new ApiResponse(400, null, "product id is neccessary"))
+    // const price = 10;
+    if (!priceId) return res.status(400).json(new ApiResponse(400, null, "price id is neccessary"))
 
+    // console.log(`stripe secret key : ${STRIPE_SECRETKEY} and ${priceId}`)
+
+    if (existingUser.subscription?.isActive) {
+      return res.status(400).json(new ApiResponse(400, null, "user already subscribed"))
+    }
+
+    if (existingUser.subscription?.endDate > Date.now()) {
+      return res.status(400).json(new ApiResponse(400, null, "user already subscribed"))
+    }
     const stripe = new Stripe(STRIPE_SECRETKEY)
     const response = await stripe.checkout.sessions.create({
-      ui_mode: "custom",
+      // ui_mode: "custom",
+      mode: 'subscription',
       line_items: [
         {
           // Provide the exact Price ID (for example, price_1234) of the product you want to sell
-          price: productId,
+          price: "price_1T3HcE5VgY9ysS7wPFzt7LGU",
           quantity: 1,
         },
       ],
-      mode: 'payment',
-      return_url: `${FRONTEND_URL}/complete?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${FRONTEND_URL}/complete?session_id={CHECKOUT_SESSION_ID}`,
       automatic_tax: { enabled: true },
+      subscription_data: {
+        billing_mode: { type: 'flexible' }
+      }
     })
 
-    console.log(response)
-
-    if (!response.payment_status) return res.status(402).json(new ApiResponse(402, response, "payment required"))
-    const now = new Date()
-    const subscription = await Subscription.create({
-      userId: userId,
-      isActive: true,
-      price: price,
-      startDate: now.getTime(),
-      endDate: now.getTime() + 30 * 24 * 60 * 60 * 1000,
-    })
-
-    return res.status(201).json(new ApiResponse(201, { payment_details: response, subscription }, "subscriation created successfully"))
+    return res.status(200).json(new ApiResponse(200, { payment_details: response }, "checkout session created successfully"))
   } catch (error) {
-    throw new ApiError(500, "error while creating subscription", error)
+    throw new ApiError(500, "error while creating checkout session", error)
   }
 })
 
+const verifyCheckoutSession = AsyncHandler(async (req, res) => {
+  const { sessionId } = req.body;
+  if (!sessionId) return res.status(400).json(new ApiResponse(400, null, "session id is required"));
+
+  try {
+    const stripe = new Stripe(STRIPE_SECRETKEY);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json(new ApiResponse(400, null, "Payment not completed"));
+    }
+
+    const existingUser = await User.findById(req.user._id).populate("subscription");
+    if (!existingUser) return res.status(404).json(new ApiResponse(404, null, "user not found"));
+
+    if (existingUser.subscription?.isActive && existingUser.subscription?.endDate > Date.now()) {
+      return res.status(200).json(new ApiResponse(200, existingUser, "User already subscribed"));
+    }
+
+    const now = new Date();
+    const subscription = await Subscription.create({
+      userId: req.user._id,
+      isActive: true,
+      price: 10,
+      startDate: now.getTime(),
+      endDate: now.getTime() + 30 * 24 * 60 * 60 * 1000,
+    });
+
+    existingUser.subscription = subscription._id;
+    await existingUser.save();
+
+    return res.status(200).json(new ApiResponse(200, existingUser, "Subscription activated successfully"));
+  } catch (error) {
+    throw new ApiError(500, "error verifying session", error);
+  }
+});
+
 export {
   subscribeSubscription,
-  isSubscriptionActive
+  isSubscriptionActive,
+  verifyCheckoutSession
 }

@@ -17,6 +17,7 @@ const Subscription = () => {
 
         try {
             setLoading(true);
+            console.log(user._id, priceId)
             const data = await createCheckoutSession(user._id, priceId);
 
             // Backend returns a full Stripe checkout session object

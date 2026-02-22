@@ -1,7 +1,7 @@
 import AsyncHandler from "express-async-handler";
-import { ApiResponse } from "../util/ApiResponse";
+import { ApiResponse } from "../util/ApiResponse.js";
 import { Comment } from "../models/comment.model.js";
-import { ApiError } from "../util/ApiError";
+import { ApiError } from "../util/ApiError.js";
 
 const createComment = AsyncHandler(async (req, res) => {
   const { content, postId, userId } = req.body;
@@ -9,8 +9,8 @@ const createComment = AsyncHandler(async (req, res) => {
   if (!content || !postId || !userId) return res.status(400).json(new ApiResponse(400, null, "content postId or userId not present"))
 
   try {
-    const comment = await Comment.create({ content, postId, createdBy: userId })
-    if (!comment) throw new ApiError(500, "unable to create comment", error)
+    const comment = await Comment.create({ content, postId: postId, createdBy: userId })
+    if (!comment) return res.status(400).json(new ApiResponse(400, null, "unable to create comment"))
 
     return res.status(201).json(new ApiResponse(201, comment, "message created successfully"))
   } catch (error) {
@@ -25,9 +25,19 @@ const replyComment = AsyncHandler(async (req, res) => {
 
   try {
     const comment = await Comment.findById(commentId)
-    if (!comment) throw new ApiError(500, "unable to create comment", error)
+    if (!comment) return res.status(400).json(new ApiResponse(400, null, "unable to create comment"))
 
-    comment.reply.push({ content, createdBy: userId, postId: commentId })
+    if (comment.createdBy.toString() !== userId.toString()) return res.status(400).json(new ApiResponse(400, null, "you are not authorized to reply to this comment"))
+
+    const reply = await Comment.create({
+      content,
+      createdBy: userId,
+      postId: comment.postId
+    })
+
+    if (!reply) return res.status(400).json(new ApiResponse(400, null, "unable to create reply"))
+
+    comment.reply.push(reply._id)
     await comment.save()
 
     return res.status(201).json(new ApiResponse(201, comment, "message created successfully"))
@@ -36,36 +46,40 @@ const replyComment = AsyncHandler(async (req, res) => {
   }
 })
 
+
 const clapComment = AsyncHandler(async (req, res) => {
   const { commentId, userId } = req.body;
 
-  if (!commentId) return res.status(400).json(new ApiResponse(400, null, "commentId not present"))
+  if (!commentId) return res.status(400).json(new ApiResponse(400, null, "commentId not present"));
 
   try {
-    const comment = await Comment.findById(commentId)
+    const comment = await Comment.findById(commentId);
 
     if (!comment) return res.status(404).json(new ApiResponse(404, null, "comment not present"));
 
-    comment.clappedBy.push(userId)
-    comment.$inc("clap", (comment.clap || 0) + 1);
+    if (!comment.clappedBy.includes(userId)) {
+      comment.clappedBy.push(userId);
+      await comment.save();
+    }
 
-    await comment.save()
-
+    return res.status(200).json(new ApiResponse(200, comment, "comment clapped successfully"));
   } catch (error) {
-    throw new ApiError(500, "internal server error", error)
+    throw new ApiError(500, "internal server error", error);
   }
-})
+});
 
 const fetchComment = AsyncHandler(async (req, res) => {
-  const { postId } = req.body;
-  if (!postId) return res.status(400).json(new ApiResponse(400, null, "post id is not present"))
+  const { postId } = req.params;
+
+  if (!postId) return res.status(400).json(new ApiResponse(400, null, "postId not present"))
+
   try {
-    const comments = await Comment.find();
-    if (!comments) return res.status(404).json(new ApiResponse(404, null, "comments not found"))
+    const comments = await Comment.findById(postId).populate("createdBy", "username").populate("reply", "username")
+    if (!comments) return res.status(404).json(new ApiResponse(404, null, "comments not present"))
 
-    return res.status(200).json(new ApiResponse(200, comments, "comments fetched succesfully"))
+    return res.status(200).json(new ApiResponse(200, comments, "comments fetched successfully"))
   } catch (error) {
-
+    throw new ApiError(500, "internal server error", error)
   }
 })
 

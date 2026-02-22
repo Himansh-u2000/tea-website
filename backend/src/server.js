@@ -2,6 +2,8 @@ import express from "express"
 import { PORT, DB_URL, FRONTEND_URL } from "./conf/index.js"
 import connectDatabase from "./util/connection.js";
 import authRouter from "./routes/auth.router.js";
+import userRouter from "./routes/user.router.js";
+import commentRouter from "./routes/comment.router.js";
 import { postRouter } from "./routes/post.router.js";
 import errorHandler from "./middleware/errorHandler.middleware.js";
 import cors from "cors"
@@ -34,9 +36,11 @@ app.use(limiter)
 
 // user routes
 app.use("/api/user", authRouter)
+app.use("/api/user", userRouter)
 
-app.use("/api/posts/", postRouter);
-app.use("/api/subscription", paymentRouter)
+app.use("/api/posts", postRouter);
+app.use("/api/subscription", paymentRouter);
+app.use("/api/comment", commentRouter);
 
 app.get("/api/health", (_, res) => {
     res.send("Server is running healthy")

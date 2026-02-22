@@ -12,7 +12,7 @@ const verifyJWT = AsyncHandler(async (req, res, next) => {
   try {
     const decodedToken = jwt.verify(token, ACCESS_TOKEN_SECRET)
     if (!decodedToken) return res.status(401).json(new ApiResponse(401, null, "Access Token Expired"))
-    req._id = decodedToken._id;
+    req.user = { _id: decodedToken._id, email: decodedToken.email, username: decodedToken.username };
     req.token = token;
     next()
   } catch (error) {

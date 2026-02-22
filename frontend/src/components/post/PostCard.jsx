@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import useEmblaCarousel from 'embla-carousel-react';
 import { HiLocationMarker, HiClock, HiHeart, HiChat, HiShare } from 'react-icons/hi';
 import { formatDate, truncateText } from '../../utils/formatters';
-import { addComment } from '../../services/commentService';
 import { useAuth } from '../../context/AuthContext';
+import PostDetailModal from './PostDetailModal';
 
 /* ── Embla Image Carousel ── */
 const ImageCarousel = ({ images, title, onDoubleTap }) => {
@@ -69,17 +69,23 @@ const PostCard = ({ post, onClap }) => {
     const { user } = useAuth();
     const [clapAnim, setClapAnim] = useState(false);
     const [expanded, setExpanded] = useState(false);
-    const [showComments, setShowComments] = useState(false);
-    const [commentText, setCommentText] = useState('');
-    const [comments, setComments] = useState(post.comments || []);
-    const [submitting, setSubmitting] = useState(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [showBigHeart, setShowBigHeart] = useState(false);
+    const [localClaps, setLocalClaps] = useState(post.clappedBy?.length || post.clap || 0);
+
+    const [hasClappedLocal, setHasClappedLocal] = useState(() => {
+        const userId = user?.id || user?._id;
+        return post.clappedBy?.includes(userId) || false;
+    });
 
     const handleClap = () => {
+        if (hasClappedLocal) return; // Lock multiple likes
+        setHasClappedLocal(true);
         setClapAnim(true);
         setShowBigHeart(true);
         setTimeout(() => setClapAnim(false), 600);
         setTimeout(() => setShowBigHeart(false), 1000);
-        onClap?.(post.postUrl);
+        onClap?.(post._id);
         setLocalClaps(prev => prev + 1);
     };
 
@@ -99,43 +105,12 @@ const PostCard = ({ post, onClap }) => {
         }
     };
 
-    const handleComment = async () => {
-        if (!commentText.trim() || submitting) return;
-        setSubmitting(true);
-        try {
-            const result = await addComment(post._id, commentText.trim());
-            // Add the new comment locally for instant feedback
-            const newComment = {
-                _id: Date.now().toString(),
-                text: commentText.trim(),
-                user: { username: user?.username || 'You' },
-                likes: 0,
-                createdAt: new Date().toISOString(),
-                ...(result?.data || {}),
-            };
-            setComments(prev => [...prev, newComment]);
-            setCommentText('');
-        } catch (err) {
-            // Backend not implemented yet — still add locally for UI preview
-            const newComment = {
-                _id: Date.now().toString(),
-                text: commentText.trim(),
-                user: { username: user?.username || 'You' },
-                likes: 0,
-                createdAt: new Date().toISOString(),
-            };
-            setComments(prev => [...prev, newComment]);
-            setCommentText('');
-        }
-        setSubmitting(false);
-    };
-
     const images = post.images || (post.image ? [post.image] : []);
     const content = post.gossip || post.content || '';
 
-    // Find the most liked comment
-    const topComment = comments.length > 0
-        ? [...comments].sort((a, b) => (b.likes || 0) - (a.likes || 0))[0]
+    // Mock top comment, or remove it entirely if you want all discussion inside modal
+    const topComment = post.comments?.length > 0
+        ? [...post.comments].sort((a, b) => (b.clappedBy?.length || 0) - (a.clappedBy?.length || 0))[0]
         : null;
 
     return (
@@ -201,10 +176,10 @@ const PostCard = ({ post, onClap }) => {
                             animate={clapAnim ? { scale: [1, 1.4, 1], rotate: [0, -15, 15, 0] } : {}}
                             transition={{ duration: 0.5 }}
                         >
-                            <HiHeart className={`w-7 h-7 transition-colors ${clapAnim ? 'text-pink-500' : 'text-white hover:text-gray-300'}`} />
+                            <HiHeart className={`w-7 h-7 transition-colors ${hasClappedLocal || clapAnim ? 'text-pink-500' : 'text-white hover:text-gray-300'}`} />
                         </motion.div>
                     </motion.button>
-                    <button onClick={() => setShowComments(!showComments)} className="group hover:-translate-y-0.5 transition-transform">
+                    <button onClick={() => setIsDetailModalOpen(true)} className="group hover:-translate-y-0.5 transition-transform">
                         <HiChat className="w-7 h-7 text-white hover:text-gray-300 transition-colors" />
                     </button>
                     <button onClick={handleShare} className="group hover:-translate-y-0.5 transition-transform">
@@ -253,56 +228,37 @@ const PostCard = ({ post, onClap }) => {
             )}
 
             {/* View all comments link */}
-            {comments.length > 1 && !showComments && (
+            {!isDetailModalOpen && (
                 <button
-                    onClick={() => setShowComments(true)}
-                    className="px-4 pb-1 text-muted text-[12px]"
+                    onClick={() => setIsDetailModalOpen(true)}
+                    className="px-4 pb-2 text-muted text-[12px] font-medium"
                 >
-                    View all {comments.length} comments
+                    View discussions
                 </button>
             )}
 
-            {/* Comments section (expandable) */}
-            {showComments && comments.length > 0 && (
-                <motion.div
-                    className="px-4 pb-2 space-y-1.5"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    transition={{ duration: 0.25 }}
-                >
-                    <div className="max-h-32 overflow-y-auto no-scrollbar space-y-1">
-                        {comments.map((c) => (
-                            <p key={c._id} className="text-[12px] text-gray-400 leading-relaxed">
-                                <span className="font-semibold text-gray-300">{c.user?.username || 'Anon'}</span>
-                                {' '}{c.text}
-                            </p>
-                        ))}
+            {/* Fake Inline Comment Input */}
+            {!isDetailModalOpen && (
+                <div className="px-4 pb-3 flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-orange-500 to-pink-500 p-[1px] shrink-0">
+                        <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-white text-[10px] font-bold">
+                            {(user?.username || '?')[0]?.toUpperCase()}
+                        </div>
                     </div>
-                </motion.div>
+                    <button
+                        onClick={() => setIsDetailModalOpen(true)}
+                        className="flex-1 text-left text-[13px] text-gray-500 bg-transparent outline-none focus:outline-none"
+                    >
+                        Add a comment...
+                    </button>
+                </div>
             )}
 
-            {/* Comment input */}
-            <div className="px-4 py-2.5 border-t border-dark-50 flex items-center gap-2">
-                <input
-                    type="text"
-                    placeholder="Add a comment..."
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleComment()}
-                    className="flex-1 bg-transparent text-[13px] text-gray-300 placeholder-dark-50 outline-none"
-                />
-                {commentText.trim() && (
-                    <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        onClick={handleComment}
-                        disabled={submitting}
-                        className="text-accent text-[13px] font-semibold disabled:opacity-40"
-                    >
-                        Post
-                    </motion.button>
-                )}
-            </div>
+            <PostDetailModal
+                post={post}
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+            />
         </motion.article>
     );
 };

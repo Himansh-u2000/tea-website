@@ -10,8 +10,8 @@ const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const OAUTH_SECRET = process.env.OAUTH_SECRET;
 const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID;
-const STRIPE_SECRETKEY = process.env.STRIPE_SECRETKEY
-const STRIPE_PRODUCT_ID = process.env.STRIPE_PRODUCT_ID
+const STRIPE_SECRETKEY = process.env.STRIPE_SECRET_KEY;
+const STRIPE_PRODUCT_ID = process.env.STRIPE_PRODUCT_ID;
 
 export {
   PORT,

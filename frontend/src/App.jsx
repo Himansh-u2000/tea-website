@@ -10,6 +10,8 @@ import FindPosts from './pages/FindPosts';
 import Recommended from './pages/Recommended';
 import Profile from './pages/Profile';
 import Subscription from './pages/Subscription';
+import VerifyGender from './pages/VerifyGender';
+import Complete from './pages/Complete';
 
 function App() {
     return (
@@ -28,6 +30,8 @@ function App() {
                         <Route path="/recommended" element={<ProtectedRoute><Recommended /></ProtectedRoute>} />
                         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                         <Route path="/subscribe" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
+                        <Route path="/verify-gender" element={<ProtectedRoute><VerifyGender /></ProtectedRoute>} />
+                        <Route path="/complete" element={<ProtectedRoute><Complete /></ProtectedRoute>} />
 
                         {/* Fallback */}
                         <Route path="*" element={<Navigate to="/" replace />} />

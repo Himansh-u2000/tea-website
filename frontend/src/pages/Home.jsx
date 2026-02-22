@@ -33,10 +33,10 @@ const Home = () => {
         }
     };
 
-    const handleClap = async (postUrl) => {
+    const handleClap = async (postId) => {
         try {
-            await clapPost(postUrl, user?.id || user?._id);
-            setPosts(posts.map(p => p.postUrl === postUrl ? { ...p, clap: (p.clap || 0) + 1 } : p));
+            await clapPost(postId, user?.id || user?._id);
+            setPosts(posts.map(p => p._id === postId ? { ...p, clap: (p.clap || 0) + 1 } : p));
         } catch (error) {
             console.log('Clap error:', error);
         }

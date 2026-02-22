@@ -100,11 +100,11 @@ const fetchPostByURL = AsyncHandler(async (req, res) => {
 })
 
 const fetchAllPostOfUser = AsyncHandler(async (req, res) => {
-  const { userId } = req.body
+  const userId = req.query.userId || req.user?._id;
   if (!userId) return res.status(400).json(new ApiResponse(400, null, "user id not passed"))
   try {
     const posts = await Post.find({ createdBy: userId });
-    if (posts.length < 1) return res.status(404).json(new ApiResponse(404, null, "post not found"))
+    if (!posts) return res.status(404).json(new ApiResponse(404, null, "post not found"))
 
     return res.status(200).json(new ApiResponse(200, posts, "Posts Fetched Successfully"))
   } catch (error) {
@@ -116,7 +116,7 @@ const fetchAllPostOfUser = AsyncHandler(async (req, res) => {
 // fix
 const fetchRecommendedPost = AsyncHandler(async (req, res) => {
   // will use geospacial field 
-  const { lat, lng } = req.body;
+  const { lat, lng } = req.query;
 
   if (!lat || !lng) return res.status(401).json(new ApiResponse(400, null, "lat and lng required"))
   try {
@@ -126,7 +126,7 @@ const fetchRecommendedPost = AsyncHandler(async (req, res) => {
         $near: {
           $geometry: {
             type: "Point",
-            coordinates: [lng, lat]
+            coordinates: [parseFloat(lng), parseFloat(lat)]
           },
           $maxDistance: 10000
         }
@@ -147,24 +147,26 @@ const clapPost = AsyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!userId || !id) {
-    return res.status(400).json(new ApiResponse(400, null, "user id or post id missing"))
+    return res.status(400).json(new ApiResponse(400, null, "user id or post id missing"));
   }
 
   try {
-    // clap is now 1 but after redis we will use cached clap.
-    // it increases clap any number of time which is bad but good that it pushed user id only one time.
+    const post = await Post.findById(id);
 
-    const post = await Post.findOneAndUpdate({ postUrl: id }, {
-      $inc: { clap: 1 },
-      $addToSet: { clappedBy: userId },
-    }, { new: true })
+    if (!post) {
+      return res.status(404).json(new ApiResponse(404, null, "Post not found"));
+    }
 
-    if (!post) return res.status(404).json(new ApiResponse(404, null, "No Posts"))
-    return res.status(200).json(new ApiResponse(200, post, "Post Liked Successfully"))
+    if (!post.clappedBy.includes(userId)) {
+      post.clappedBy.push(userId);
+      await post.save();
+    }
+
+    return res.status(200).json(new ApiResponse(200, post, "Post Liked Successfully"));
   } catch (error) {
-    throw new ApiError(500, "error while clapping post", error)
+    throw new ApiError(500, "error while clapping post", error);
   }
-})
+});
 
 const deletePostById = AsyncHandler(async (req, res) => {
   const { id } = req.body;

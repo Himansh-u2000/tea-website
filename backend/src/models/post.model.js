@@ -24,11 +24,6 @@ const postSchema = new mongoose.Schema({
   images: {
     type: [{ type: String }]
   },
-  clap: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
   clappedBy: {
     type: [{ type: Schema.Types.ObjectId, ref: "User" }]
   },

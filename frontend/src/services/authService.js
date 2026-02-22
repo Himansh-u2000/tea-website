@@ -19,36 +19,23 @@ export const signup = async (signupData) => {
     return response.data;
 };
 
-// Get current user (decode from token or fetch from user endpoint)
 export const getCurrentUser = async () => {
-    // For now, decode user from token or fetch from localStorage
-    // In production, you'd want a /user/me endpoint
     const token = localStorage.getItem('accessToken');
     if (!token) return null;
 
     try {
-        // Parse JWT token to get user info (basic decode without verification)
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return {
-            id: payload._id,
-            email: payload.email,
-            username: payload.username,
-        };
+        const response = await api.get('/user/me');
+        return response.data.data;
     } catch (error) {
         return null;
     }
 };
 
-export const uploadGovernmentID = async (file, idType, idNumber) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('idType', idType);
-    formData.append('idNumber', idNumber);
-
-    const response = await api.post('/user/upload-id', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
+export const submitVerification = async ({ idType, idNumber, imageUrl }) => {
+    const response = await api.post('/user/upload-id', {
+        idType,
+        idNumber,
+        imageUrl,
     });
     return response.data;
 };
@@ -59,6 +46,6 @@ export const getVerificationStatus = async () => {
 };
 
 export const googleLogin = async (code, lat, lng) => {
-    const response = await api.get(`/user/oauth?code=${code}&lat=${lat || ''}&lng=${lng || ''}`);
+    const response = await api.post(`/user/oauth-login?code=${code}&lat=${lat || ''}&lng=${lng || ''}`);
     return response.data;
 };

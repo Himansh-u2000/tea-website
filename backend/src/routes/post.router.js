@@ -7,19 +7,20 @@ import {
   fetchRecommendedPost
 } from "../controllers/post.controller.js";
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
+import { verifySubscription } from "../middleware/verifySubscription.middleware.js";
 
 const postRouter = Router()
 
-postRouter.get("/", fetchActivePosts) //correct
-postRouter.get("/post?url", fetchPostByURL) //correct
-postRouter.post("/create-post", verifyJWT, createPost) //correct
+postRouter.get("/", verifyJWT, verifySubscription, fetchActivePosts) //correct
+postRouter.get("/post?url", verifyJWT, verifySubscription, fetchPostByURL) //correct
+postRouter.post("/create-post", verifyJWT, verifySubscription, createPost) //correct
 postRouter.post("/delete-post", verifyJWT, deletePostById) //correct
 
-postRouter.post("/all-posts", verifyJWT, fetchAllPostOfUser)
+postRouter.get("/all-posts", verifyJWT, verifySubscription, fetchAllPostOfUser)
 
-postRouter.post("/:id", verifyJWT, clapPost) //correct
+postRouter.post("/:id", verifyJWT, verifySubscription, clapPost) //correct
 
-postRouter.get("/recommended", verifyJWT, fetchRecommendedPost)
+postRouter.get("/recommended", verifyJWT, verifySubscription, fetchRecommendedPost)
 
 // will not be used 
 // postRouter.get("/delete-all-posts", verifyJWT, deleteAllUserPost)

@@ -6,11 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { requestLocationPermission } from '../utils/geolocation';
-import { uploadGovernmentID } from '../services/cloudinaryService';
 
 const Signup = () => {
     const navigate = useNavigate();
-    const { signup } = useAuth();
+    const { signup, refreshSession } = useAuth();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
@@ -21,10 +20,6 @@ const Signup = () => {
         password: '',
         confirmPassword: '',
         gender: '',
-        idType: 'aadhar',
-        idNumber: '',
-        idFile: null,
-        idFilePreview: null,
         lat: null,
         lng: null,
     });
@@ -32,17 +27,6 @@ const Signup = () => {
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
         setErrors({ ...errors, [e.target.name]: '' });
-    };
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setFormData({
-                ...formData,
-                idFile: file,
-                idFilePreview: URL.createObjectURL(file),
-            });
-        }
     };
 
     const validateStep1 = () => {
@@ -57,19 +41,10 @@ const Signup = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const validateStep2 = () => {
-        const newErrors = {};
-        if (!formData.idFile) newErrors.idFile = 'Please upload your ID document';
-        if (!formData.idNumber.trim()) newErrors.idNumber = 'ID number is required';
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
     const handleNextStep = async () => {
         if (step === 1 && !validateStep1()) return;
-        if (step === 2 && !validateStep2()) return;
 
-        if (step === 3) {
+        if (step === 2) {
             setLoading(true);
             const locationResult = await requestLocationPermission();
             setLoading(false);
@@ -93,10 +68,6 @@ const Signup = () => {
     const handleSignup = async (lat = formData.lat, lng = formData.lng) => {
         setLoading(true);
         try {
-            console.log('Starting ID upload...');
-            const idUrl = await uploadGovernmentID(formData.idFile);
-            console.log('ID uploaded:', idUrl);
-
             console.log('Calling signup API...');
             const result = await signup({
                 fullName: formData.fullName,
@@ -120,8 +91,6 @@ const Signup = () => {
         }
         setLoading(false);
     };
-
-    const totalSteps = formData.gender === 'male' ? 4 : 3;
 
     const slideVariants = {
         enter: { x: 30, opacity: 0 },
@@ -148,8 +117,8 @@ const Signup = () => {
                             type="button"
                             onClick={() => { setFormData({ ...formData, gender: g }); setErrors({ ...errors, gender: '' }); }}
                             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${formData.gender === g
-                                    ? 'bg-gradient-accent text-white shadow-glow'
-                                    : 'bg-dark-100 text-muted border border-dark-50 hover:border-accent/30'
+                                ? 'bg-gradient-accent text-white shadow-glow'
+                                : 'bg-dark-100 text-muted border border-dark-50 hover:border-accent/30'
                                 }`}
                         >
                             {g === 'female' ? '👩 Female' : '👨 Male'}
@@ -165,48 +134,7 @@ const Signup = () => {
     );
 
     const renderStep2 = () => (
-        <motion.div key="step2" variants={slideVariants} initial="enter" animate="center" exit="exit" className="space-y-4">
-            <h2 className="text-xl font-display font-bold text-white mb-1">Verify Identity</h2>
-            <p className="text-muted text-sm mb-4">Upload a government ID to keep it real 💯</p>
-
-            <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-400 pl-1">ID Type</label>
-                <select
-                    name="idType"
-                    value={formData.idType}
-                    onChange={handleChange}
-                    className="input-dark py-3 px-4"
-                >
-                    <option value="aadhar">Aadhar Card</option>
-                    <option value="pan">PAN Card</option>
-                    <option value="driving">Driving License</option>
-                </select>
-            </div>
-
-            <Input label="ID Number" icon={HiIdentification} name="idNumber" placeholder="Enter ID number" value={formData.idNumber} onChange={handleChange} error={errors.idNumber} />
-
-            <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-400 pl-1">Upload ID Photo</label>
-                <label className="block cursor-pointer">
-                    <div className={`glass-card border-dashed border-2 rounded-xl p-6 text-center transition-all hover:border-accent/30 ${errors.idFile ? 'border-red-500/50' : 'border-dark-50'}`}>
-                        {formData.idFilePreview ? (
-                            <img src={formData.idFilePreview} alt="ID" className="max-h-40 mx-auto rounded-lg" />
-                        ) : (
-                            <>
-                                <HiIdentification className="w-8 h-8 mx-auto text-muted mb-2" />
-                                <p className="text-muted text-sm">Tap to upload</p>
-                            </>
-                        )}
-                    </div>
-                    <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                </label>
-                {errors.idFile && <p className="text-red-400 text-xs pl-1">{errors.idFile}</p>}
-            </div>
-        </motion.div>
-    );
-
-    const renderStep3 = () => (
-        <motion.div key="step3" variants={slideVariants} initial="enter" animate="center" exit="exit" className="text-center py-8">
+        <motion.div key="step2" variants={slideVariants} initial="enter" animate="center" exit="exit" className="text-center py-8">
             <motion.div
                 className="w-20 h-20 mx-auto mb-6 rounded-full bg-dark-100 border border-dark-50 flex items-center justify-center"
                 animate={{ scale: [1, 1.05, 1] }}
@@ -222,27 +150,7 @@ const Signup = () => {
         </motion.div>
     );
 
-    const renderStep4 = () => (
-        <motion.div key="step4" variants={slideVariants} initial="enter" animate="center" exit="exit" className="text-center py-6">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-dark-100 border border-dark-50 flex items-center justify-center">
-                <span className="text-3xl">💳</span>
-            </div>
-            <h2 className="text-xl font-display font-bold text-white mb-2">Subscription</h2>
-            <div className="glass-card p-5 mt-4 space-y-3">
-                <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-400">Monthly</span>
-                    <span className="text-lg font-bold text-gradient">₹49/mo</span>
-                </div>
-                <div className="divider" />
-                <ul className="text-left text-sm text-gray-400 space-y-2">
-                    <li className="flex items-center gap-2"><span className="text-accent">✓</span> Unlimited gossip posts</li>
-                    <li className="flex items-center gap-2"><span className="text-accent">✓</span> See nearby tea</li>
-                    <li className="flex items-center gap-2"><span className="text-accent">✓</span> Profile customization</li>
-                </ul>
-            </div>
-            <p className="text-muted text-xs mt-4">Payment integration coming soon. Skip for now.</p>
-        </motion.div>
-    );
+    const totalSteps = 2;
 
     return (
         <div className="min-h-screen flex items-center justify-center px-5 py-10 relative overflow-hidden">
@@ -280,13 +188,11 @@ const Signup = () => {
                     <AnimatePresence mode="wait">
                         {step === 1 && renderStep1()}
                         {step === 2 && renderStep2()}
-                        {step === 3 && renderStep3()}
-                        {step === 4 && renderStep4()}
                     </AnimatePresence>
 
                     <div className="flex gap-3 mt-6">
                         {step > 1 && (
-                            <Button variant="ghost" onClick={() => setStep(step - 1)} className="flex-1">
+                            <Button variant="ghost" onClick={() => setStep(1)} className="flex-1">
                                 Back
                             </Button>
                         )}

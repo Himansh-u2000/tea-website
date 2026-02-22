@@ -78,7 +78,16 @@ const createUser = asyncHandler(async (req, res) => {
 
     await User.updateOne({ _id: user._id }, { $set: { refreshToken: token.refreshToken } });
 
-    return res.status(201).json(new ApiResponse(201, token, "User created Successfully"))
+    return res.status(201).json(new ApiResponse(201, {
+      token,
+      user: {
+        _id: user._id,
+        username: user.username,
+        gender: user.gender,
+        status: user.status,
+        subscription: user.subscription
+      }
+    }, "User created Successfully"))
   } catch (error) {
     console.log(error)
     throw new ApiError(500, "error while creating user", error)
@@ -99,7 +108,16 @@ const login = asyncHandler(async (req, res) => {
     if (match) {
       const token = generateAccessAndRefreshToken(email, existingUser.username, existingUser._id);
       await User.updateOne({ _id: existingUser._id }, { $set: { refreshToken: token.refreshToken } });
-      return res.status(200).json(new ApiResponse(200, token, "user login sucessfully"));
+      return res.status(200).json(new ApiResponse(200, {
+        token,
+        user: {
+          _id: existingUser._id,
+          username: existingUser.username,
+          gender: existingUser.gender,
+          status: existingUser.status,
+          subscription: existingUser.subscription
+        }
+      }, "user login sucessfully"));
     } else {
       return res.status(401).json(new ApiResponse(401, null, "unauthorized access"));
     }
@@ -114,15 +132,16 @@ const oAuthLogin = asyncHandler(async (req, res) => {
 
   const { code, lat, lng } = req.query;
   if (!code) return res.status(404).json(new ApiResponse(404, null, "code not present in quesry"))
-  const response = oauth2Client.getToken(code)
-
-  oauth2Client.setCredentials(response.tokens)
-
-  const userRes = await axios.get(`https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${response.tokens.accessToken}`)
-
-  const { name, email, picture, gender } = userRes.data;
 
   try {
+    const response = await oauth2Client.getToken(code)
+
+    oauth2Client.setCredentials(response.tokens)
+
+    const userRes = await axios.get(`https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${response.tokens.access_token}`)
+
+    const { name, email, picture, gender } = userRes.data;
+
     // find user if already exists otherwise create user
     let user = await User.findOne({ email })
     if (!user) {
@@ -153,8 +172,9 @@ const oAuthLogin = asyncHandler(async (req, res) => {
       }
 
       // create new user
+      const randomPassword = await bcrypt.hash(Math.random().toString(36).slice(-8) + "googleOauth", 10);
       user = await User.create({
-        fullName: name, email, profilePhoto: picture || "", username: Math.random().toString(36), gender,
+        fullName: name, email, profilePhoto: picture || "", username: Math.random().toString(36), gender: gender || "male", password: randomPassword,
         location: lat && lng ? {
           type: "Point",
           coordinates: [parseFloat(lng), parseFloat(lat)]
@@ -167,14 +187,32 @@ const oAuthLogin = asyncHandler(async (req, res) => {
       const token = generateAccessAndRefreshToken(email, user.username, user._id)
       user.refreshToken = token.refreshToken;
       await user.save()
-      return res.status(201).json(new ApiResponse(201, token, "User Created Successfully"))
+      return res.status(201).json(new ApiResponse(201, {
+        token,
+        user: {
+          _id: user._id,
+          username: user.username,
+          gender: user.gender,
+          status: user.status,
+          subscription: user.subscription
+        }
+      }, "User Created Successfully"))
     } else {
       const token = generateAccessAndRefreshToken(email, user.username, user._id)
       // update user data
       user.profilePhoto = response.photo;
       user.refreshToken = token.refreshToken;
       await user.save();
-      return res.status(200).json(new ApiResponse(200, token, "user login successfully throgh oauth"))
+      return res.status(200).json(new ApiResponse(200, {
+        token,
+        user: {
+          _id: user._id,
+          username: user.username,
+          gender: user.gender,
+          status: user.status,
+          subscription: user.subscription
+        }
+      }, "user login successfully throgh oauth"))
     }
   } catch (error) {
     throw new ApiError(500, "Error in oauth ", error)

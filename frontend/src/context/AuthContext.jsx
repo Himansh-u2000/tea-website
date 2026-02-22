@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { login as loginAPI, signup as signupAPI, getCurrentUser } from '../services/authService';
+import { login as loginAPI, signup as signupAPI, googleLogin as googleLoginAPI, getCurrentUser } from '../services/authService';
 
 const AuthContext = createContext(null);
 
@@ -20,16 +20,30 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const initAuth = async () => {
             const token = localStorage.getItem('accessToken');
-            if (token) {
+            const storedUser = localStorage.getItem('user');
+
+            if (token && storedUser) {
                 try {
-                    const userData = await getCurrentUser();
-                    setUser(userData);
+                    setUser(JSON.parse(storedUser));
                     setIsAuthenticated(true);
                 } catch (error) {
-                    // Token invalid or expired
+                    // Token invalid or payload corrupted
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('refreshToken');
                     localStorage.removeItem('user');
+                }
+            } else if (token) {
+                // Fallback attempt to reconstruct session via current implementation
+                try {
+                    const userData = await getCurrentUser();
+                    if (userData) {
+                        setUser(userData);
+                        setIsAuthenticated(true);
+                        localStorage.setItem('user', JSON.stringify(userData));
+                    }
+                } catch (error) {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
                 }
             }
             setLoading(false);
@@ -41,12 +55,12 @@ export const AuthProvider = ({ children }) => {
     const login = async (email, password) => {
         try {
             const response = await loginAPI({ email, password });
-            const { accessToken, refreshToken } = response.data;
+            const { token, user: userData } = response.data;
 
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
+            localStorage.setItem('accessToken', token.accessToken);
+            localStorage.setItem('refreshToken', token.refreshToken);
+            localStorage.setItem('user', JSON.stringify(userData));
 
-            const userData = await getCurrentUser();
             setUser(userData);
             setIsAuthenticated(true);
 
@@ -62,24 +76,43 @@ export const AuthProvider = ({ children }) => {
     const signup = async (signupData) => {
         try {
             const response = await signupAPI(signupData);
-            console.log('signupAPI response:', response);
-            const { accessToken, refreshToken } = response.data;
+            const { token, user: userData } = response.data;
 
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
+            localStorage.setItem('accessToken', token.accessToken);
+            localStorage.setItem('refreshToken', token.refreshToken);
+            localStorage.setItem('user', JSON.stringify(userData));
 
-            const userData = await getCurrentUser();
             setUser(userData);
             setIsAuthenticated(true);
 
             return { success: true };
         } catch (error) {
             console.error('AuthContext signup error:', error);
-            console.error('Error response:', error.response?.data);
-            console.error('Error status:', error.response?.status);
             return {
                 success: false,
                 error: error.response?.data?.message || 'Signup failed'
+            };
+        }
+    };
+
+    const googleLogin = async (code, lat, lng) => {
+        try {
+            const response = await googleLoginAPI(code, lat, lng);
+            const { token, user: userData } = response.data;
+
+            localStorage.setItem('accessToken', token.accessToken);
+            localStorage.setItem('refreshToken', token.refreshToken);
+            localStorage.setItem('user', JSON.stringify(userData));
+
+            setUser(userData);
+            setIsAuthenticated(true);
+
+            return { success: true };
+        } catch (error) {
+            console.error('AuthContext google login error:', error);
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Google Login failed'
             };
         }
     };
@@ -92,13 +125,27 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
     };
 
+    const refreshSession = async () => {
+        try {
+            const userData = await getCurrentUser();
+            if (userData) {
+                setUser(userData);
+                localStorage.setItem('user', JSON.stringify(userData));
+            }
+        } catch (error) {
+            console.error("Failed to refresh session", error);
+        }
+    };
+
     const value = {
         user,
         loading,
         isAuthenticated,
         login,
         signup,
+        googleLogin,
         logout,
+        refreshSession,
     };
 
     return (
