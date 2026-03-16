@@ -37,8 +37,9 @@ const FindPosts = () => {
 
     const fetchPosts = async () => {
         try {
-            const response = await getAllPosts();
-            setPosts(response.data || []);
+            const response = await getAllPosts(1, 100); // Fetch a large batch for search/explore
+            const data = response.data;
+            setPosts(data?.posts || data || []);
         } catch (error) {
             console.error('Error:', error);
         } finally {

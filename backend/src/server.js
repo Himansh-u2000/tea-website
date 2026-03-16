@@ -9,6 +9,8 @@ import errorHandler from "./middleware/errorHandler.middleware.js";
 import cors from "cors"
 import rateLimit from "express-rate-limit"
 import { paymentRouter } from "./routes/payment.route.js";
+import nodeCron from "node-cron";
+import { syncClaps } from "./cron/syncClaps.js";
 
 const app = express();
 const port = PORT || 5000;
@@ -22,6 +24,7 @@ app.use(cors({
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
 }))
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({
@@ -45,6 +48,8 @@ app.use("/api/comment", commentRouter);
 app.get("/api/health", (_, res) => {
     res.send("Server is running healthy")
 })
+
+nodeCron.schedule("*/10 * * * *", syncClaps)
 
 app.use(errorHandler)
 // start server

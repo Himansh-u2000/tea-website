@@ -74,8 +74,9 @@ const fetchComment = AsyncHandler(async (req, res) => {
   if (!postId) return res.status(400).json(new ApiResponse(400, null, "postId not present"))
 
   try {
-    const comments = await Comment.findById(postId).populate("createdBy", "username").populate("reply", "username")
-    if (!comments) return res.status(404).json(new ApiResponse(404, null, "comments not present"))
+    const comments = await Comment.find({ postId }).populate("createdBy", "username");
+
+    if (!comments || comments.length === 0) return res.status(200).json(new ApiResponse(200, [], "no comments present"))
 
     return res.status(200).json(new ApiResponse(200, comments, "comments fetched successfully"))
   } catch (error) {

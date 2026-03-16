@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { HiLocationMarker } from 'react-icons/hi';
 import PostCard from '../components/post/PostCard';
 import { PostCardSkeleton } from '../components/ui/Skeleton';
@@ -13,23 +13,77 @@ const Recommended = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [locationGranted, setLocationGranted] = useState(false);
     const [error, setError] = useState('');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [userLocation, setUserLocation] = useState(null);
+
+    const sentinelRef = useRef(null);
+
+    const fetchPosts = useCallback(async (pageNum, lat, lng) => {
+        if (pageNum === 1) setLoading(true);
+        else setLoadingMore(true);
+
+        try {
+            const response = await getRecommendedPosts(lat, lng, pageNum);
+            const { posts: newPosts, hasMore: more } = response.data;
+
+            setPosts(prev =>
+                pageNum === 1
+                    ? newPosts
+                    : [...prev, ...newPosts.filter(p => !prev.some(e => e._id === p._id))]
+            );
+            setHasMore(more);
+        } catch (error) {
+            console.error('Error fetching recommended posts:', error);
+            if (pageNum === 1) setPosts([]);
+            setHasMore(false);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, []);
 
     const handleRequestLocation = async () => {
         setLoading(true);
         setError('');
         try {
             const pos = await getCurrentPosition();
+            setUserLocation(pos);
             setLocationGranted(true);
-            const response = await getRecommendedPosts(pos.lat, pos.lng);
-            setPosts(response.data || []);
+            await fetchPosts(1, pos.lat, pos.lng);
         } catch (_) {
             setError('Unable to access location. Please enable location services.');
-        } finally {
             setLoading(false);
         }
     };
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting && hasMore && !loadingMore && !loading && userLocation) {
+                    setPage(prev => prev + 1);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMore, loadingMore, loading, userLocation]);
+
+    // Fetch when page increments
+    useEffect(() => {
+        if (page > 1 && userLocation) {
+            fetchPosts(page, userLocation.lat, userLocation.lng);
+        }
+    }, [page, userLocation, fetchPosts]);
 
     const handleClap = async (postId) => {
         try {
@@ -86,16 +140,35 @@ const Recommended = () => {
                                 <p className="text-muted text-sm">No gossip found nearby</p>
                             </div>
                         ) : (
-                            posts.map((post, i) => (
-                                <motion.div
-                                    key={post._id || i}
-                                    initial={{ opacity: 0, y: 15 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: i * 0.05 }}
-                                >
-                                    <PostCard post={post} onClap={handleClap} />
-                                </motion.div>
-                            ))
+                            <>
+                                {posts.map((post, i) => (
+                                    <motion.div
+                                        key={post._id || i}
+                                        initial={{ opacity: 0, y: 15 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: Math.min(i * 0.05, 0.3) }}
+                                    >
+                                        <PostCard post={post} onClap={handleClap} />
+                                    </motion.div>
+                                ))}
+
+                                {/* Loading more indicator */}
+                                {loadingMore && (
+                                    <div className="py-4">
+                                        <PostCardSkeleton />
+                                    </div>
+                                )}
+
+                                {/* Sentinel for IntersectionObserver */}
+                                {hasMore && <div ref={sentinelRef} className="h-10" />}
+
+                                {/* End of feed */}
+                                {!hasMore && posts.length > 0 && (
+                                    <div className="py-8 text-center text-gray-500 text-sm">
+                                        No more nearby gossip 📍✨
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 )}

@@ -4,14 +4,14 @@ import {
   createPost, deletePostById,
   fetchActivePosts, deleteAllUserPost,
   fetchAllPostOfUser, fetchPostByURL,
-  fetchRecommendedPost
+  fetchRecommendedPost, fetchPaginatedPost
 } from "../controllers/post.controller.js";
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
 import { verifySubscription } from "../middleware/verifySubscription.middleware.js";
 
 const postRouter = Router()
 
-postRouter.get("/", verifyJWT, verifySubscription, fetchActivePosts) //correct
+postRouter.get("/", verifyJWT, verifySubscription, fetchPaginatedPost) //correct
 postRouter.get("/post?url", verifyJWT, verifySubscription, fetchPostByURL) //correct
 postRouter.post("/create-post", verifyJWT, verifySubscription, createPost) //correct
 postRouter.post("/delete-post", verifyJWT, deletePostById) //correct

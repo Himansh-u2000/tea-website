@@ -109,7 +109,7 @@ const CreatePost = () => {
                 content: formData.content,
                 thumbnail: cloudinaryUrls[0],
                 images: cloudinaryUrls,
-                createdBy: user.id,
+                createdBy: user?._id || user?.id,
                 lat,
                 lng,
             });

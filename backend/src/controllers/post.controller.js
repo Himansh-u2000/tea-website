@@ -3,22 +3,17 @@ import { ApiResponse } from "../util/ApiResponse.js";
 import { Post } from "../models/post.model.js";
 import { ApiError } from "../util/ApiError.js";
 import { User } from "../models/user.model.js";
+import { redisClient } from "../conf/index.js"
+import geohash from "ngeohash";
 
 /*
  Sanitize all the incoming data
 */
 const createPost = AsyncHandler(async (req, res) => {
   const {
-    title = "",
-    content,
-    thumbnail,
-    isActive = true,
-    images = [],
-    createdBy,
-    lat,
-    lng,
-    city,
-    region
+    title = "", content, thumbnail,
+    isActive = true, images = [], createdBy,
+    lat, lng, city, region
   } = req.body;
 
   if (!title || !content || !createdBy || [title, content, createdBy].some(f => f.trim() === "")) {
@@ -74,7 +69,7 @@ const createPost = AsyncHandler(async (req, res) => {
 
 const fetchActivePosts = AsyncHandler(async (req, res) => {
   try {
-    const posts = await Post.find({ isActive: true });
+    const posts = await Post.find({ isActive: true }).populate("createdBy", "username");
     if (!posts) return res.status(404).json(new ApiResponse(404, null, "posts not found"))
 
     return res.status(200).json(new ApiResponse(200, posts, "Posts Fetched Successfully"))
@@ -90,8 +85,8 @@ const fetchPostByURL = AsyncHandler(async (req, res) => {
   try {
     const posts = await Post.findOne({
       postUrl: id
-    });
-    if (posts.length < 1) return res.status(500).json(new ApiResponse(400, null, "error while fetching posts"))
+    }).populate("createdBy", "username");
+    if (!posts) return res.status(404).json(new ApiResponse(404, null, "error while fetching posts"))
 
     return res.status(200).json(new ApiResponse(200, posts, "Posts Fetched Successfully"))
   } catch (error) {
@@ -103,7 +98,7 @@ const fetchAllPostOfUser = AsyncHandler(async (req, res) => {
   const userId = req.query.userId || req.user?._id;
   if (!userId) return res.status(400).json(new ApiResponse(400, null, "user id not passed"))
   try {
-    const posts = await Post.find({ createdBy: userId });
+    const posts = await Post.find({ createdBy: userId }).populate("createdBy", "username");
     if (!posts) return res.status(404).json(new ApiResponse(404, null, "post not found"))
 
     return res.status(200).json(new ApiResponse(200, posts, "Posts Fetched Successfully"))
@@ -112,14 +107,28 @@ const fetchAllPostOfUser = AsyncHandler(async (req, res) => {
   }
 })
 
-
-// fix
 const fetchRecommendedPost = AsyncHandler(async (req, res) => {
-  // will use geospacial field 
-  const { lat, lng } = req.query;
-
+  const { lat, lng, page = 1, limit = 10 } = req.query;
   if (!lat || !lng) return res.status(401).json(new ApiResponse(400, null, "lat and lng required"))
+  // TODO: implement redis caching
+
+  const geoHash = geohash.encode(lat, lng)
+  const cacheKey = `posts:${geoHash}:${page}`;
+
   try {
+    const cachedPosts = await redisClient.get(cacheKey);
+
+    if (cachedPosts) {
+      return res.status(200).json(new ApiResponse(200, JSON.parse(cachedPosts), "data fetched from cache"))
+    }
+
+  } catch (error) {
+    throw new ApiError(500, "error while fetching posts from redis", error)
+  }
+
+  try {
+    const totalCount = await Post.countDocuments({ isActive: true });
+    const offset = (page - 1) * limit;
 
     const posts = await Post.find({
       location: {
@@ -130,19 +139,57 @@ const fetchRecommendedPost = AsyncHandler(async (req, res) => {
           },
           $maxDistance: 10000
         }
-      }
+      },
+      isActive: true,
     })
+      .sort({ createdAt: -1 })
+      .skip(offset)
+      .limit(limit)
+      .populate("createdBy", "username")
+      .exec();
+
+    const hasMore = totalCount > offset + limit;
 
     if (!posts) return res.status(404).json(new ApiResponse(404, null, "error in searching"))
-    if (posts.length === 0) return res.status(404).json(new ApiResponse(404, null, "No Posts Found"));
+    if (posts.length === 0) return res.status(200).json(new ApiResponse(200, { posts: [], hasMore: false, page }, ""));
 
-    return res.status(200).json(new ApiResponse(200, posts, "Posts fetched succesfully"))
+    redisClient.set(cacheKey, JSON.stringify(posts))
+
+    return res.status(200).json(new ApiResponse(200, { posts, hasMore, page }, "Posts fetched succesfully"))
   } catch (error) {
     throw new ApiError(500, "error while db query", error.text)
   }
 })
 
+const fetchPaginatedPost = AsyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  const offset = (page - 1) * limit;
+
+  try {
+    const totalCount = await Post.countDocuments({ isActive: true });
+    const posts = await Post.find({ isActive: true })
+      .sort({ createdAt: -1 })
+      .skip(offset)
+      .limit(limit)
+      .populate("createdBy", "username")
+      .exec()
+
+    const hasMore = totalCount > offset + limit;
+
+    if (!posts) return res.status(404).json(new ApiResponse(404, null, "error in searching"))
+    if (posts.length === 0) return res.status(200).json(new ApiResponse(200, { posts: [], hasMore: false, page }, ""));
+
+    return res.status(200).json(new ApiResponse(200, { posts, hasMore, page }, "Posts Fetched Successfully"))
+  } catch (error) {
+    throw new ApiError(500, "error while fetching posts", error)
+  }
+})
+
 const clapPost = AsyncHandler(async (req, res) => {
+  // We have not given right to revoke unlike a post to user. 
+  // if one user likes any post than it is permanent.
   const { userId } = req.body;
   const { id } = req.params;
 
@@ -151,21 +198,33 @@ const clapPost = AsyncHandler(async (req, res) => {
   }
 
   try {
-    const post = await Post.findById(id);
-
-    if (!post) {
-      return res.status(404).json(new ApiResponse(404, null, "Post not found"));
+    const cachedClaps = await redisClient.sIsMember(`clap:${id}`, userId);
+    if (cachedClaps) {
+      return res.status(200).json(new ApiResponse(200, null, "already liked"))
+    } else {
+      console.log("cached like", userId)
+      await redisClient.SADD(`clap:${id}`, userId)
     }
-
-    if (!post.clappedBy.includes(userId)) {
-      post.clappedBy.push(userId);
-      await post.save();
-    }
-
-    return res.status(200).json(new ApiResponse(200, post, "Post Liked Successfully"));
   } catch (error) {
-    throw new ApiError(500, "error while clapping post", error);
+    throw new ApiError(500, "error in redis cache", error)
   }
+
+  // try {
+  //   const post = await Post.findById(id);
+
+  //   if (!post) {
+  //     return res.status(404).json(new ApiResponse(404, null, "Post not found"));
+  //   }
+
+  //   if (!post.clappedBy.includes(userId)) {
+  //     post.clappedBy.push(userId);
+  //     await post.save();
+  //   }
+
+  //   return res.status(200).json(new ApiResponse(200, post, "Post Liked Successfully"));
+  // } catch (error) {
+  //   throw new ApiError(500, "error while clapping post", error);
+  // }
 });
 
 const deletePostById = AsyncHandler(async (req, res) => {
@@ -209,5 +268,6 @@ export {
   fetchActivePosts,
   deletePostById,
   deleteAllUserPost,
-  fetchRecommendedPost
+  fetchRecommendedPost,
+  fetchPaginatedPost
 }

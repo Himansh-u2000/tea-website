@@ -1,7 +1,7 @@
 import api from './api';
 
-export const getAllPosts = async () => {
-    const response = await api.get('/posts/');
+export const getAllPosts = async (page = 1, limit = 10) => {
+    const response = await api.get('/posts/', { params: { page, limit } });
     return response.data;
 };
 
@@ -15,8 +15,8 @@ export const getUserPosts = async (userId) => {
     return response.data;
 };
 
-export const getRecommendedPosts = async (lat, lng) => {
-    const response = await api.get('/posts/recommended', { params: { lat, lng } });
+export const getRecommendedPosts = async (lat, lng, page = 1, limit = 10) => {
+    const response = await api.get('/posts/recommended', { params: { lat, lng, page, limit } });
     return response.data;
 };
 

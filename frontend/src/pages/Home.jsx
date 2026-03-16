@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import PostCard from '../components/post/PostCard';
 import { PostCardSkeleton } from '../components/ui/Skeleton';
@@ -10,6 +10,9 @@ const Home = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const { scrollY } = useScroll();
 
     // Parallax for header orbs
@@ -18,20 +21,59 @@ const Home = () => {
     const headerOpacity = useTransform(scrollY, [0, 200], [1, 0]);
     const headerScale = useTransform(scrollY, [0, 200], [1, 0.95]);
 
-    useEffect(() => {
-        fetchPosts();
-    }, []);
+    const sentinelRef = useRef(null);
 
-    const fetchPosts = async () => {
+    const fetchPosts = useCallback(async (pageNum) => {
+        if (pageNum === 1) setLoading(true);
+        else setLoadingMore(true);
+
         try {
-            const response = await getAllPosts();
-            setPosts(response.data || []);
+            const response = await getAllPosts(pageNum);
+            const { posts: newPosts, hasMore: more } = response.data;
+
+            setPosts(prev =>
+                pageNum === 1
+                    ? newPosts
+                    : [...prev, ...newPosts.filter(p => !prev.some(e => e._id === p._id))]
+            );
+            setHasMore(more);
         } catch (error) {
             console.error('Error fetching posts:', error);
+            if (pageNum === 1) setPosts([]);
+            setHasMore(false);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
-    };
+    }, []);
+
+    // Initial load
+    useEffect(() => {
+        fetchPosts(1);
+    }, [fetchPosts]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting && hasMore && !loadingMore && !loading) {
+                    setPage(prev => prev + 1);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [hasMore, loadingMore, loading]);
+
+    // Fetch when page changes (after initial)
+    useEffect(() => {
+        if (page > 1) fetchPosts(page);
+    }, [page, fetchPosts]);
 
     const handleClap = async (postId) => {
         try {
@@ -75,7 +117,7 @@ const Home = () => {
                 </div>
             </motion.header>
 
-            {/* Feed — Instagram/Twitter style */}
+            {/* Feed */}
             <div className="max-w-2xl mx-auto px-4 space-y-4">
                 {loading ? (
                     [...Array(3)].map((_, i) => <PostCardSkeleton key={i} />)
@@ -90,16 +132,35 @@ const Home = () => {
                         <p className="text-muted text-sm">Be the first to spill the tea!</p>
                     </motion.div>
                 ) : (
-                    posts.map((post, index) => (
-                        <motion.div
-                            key={post._id || index}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05, duration: 0.3 }}
-                        >
-                            <PostCard post={post} onClap={handleClap} />
-                        </motion.div>
-                    ))
+                    <>
+                        {posts.map((post, index) => (
+                            <motion.div
+                                key={post._id || index}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: Math.min(index * 0.05, 0.3), duration: 0.3 }}
+                            >
+                                <PostCard post={post} onClap={handleClap} />
+                            </motion.div>
+                        ))}
+
+                        {/* Loading more indicator */}
+                        {loadingMore && (
+                            <div className="py-4">
+                                <PostCardSkeleton />
+                            </div>
+                        )}
+
+                        {/* Sentinel for IntersectionObserver */}
+                        {hasMore && <div ref={sentinelRef} className="h-10" />}
+
+                        {/* End of feed */}
+                        {!hasMore && posts.length > 0 && (
+                            <div className="py-8 text-center text-gray-500 text-sm">
+                                You're all caught up ☕✨
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

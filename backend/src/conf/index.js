@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { createClient } from "redis";
 
 dotenv.config({ path: "" })
 
@@ -13,6 +14,12 @@ const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID;
 const STRIPE_SECRETKEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_PRODUCT_ID = process.env.STRIPE_PRODUCT_ID;
 
+
+const redisClient = await createClient()
+  .on("error", (err) => console.log("Redis Client Error", err))
+  .on("connect", () => console.log("Redis Client Connected"))
+  .connect();
+
 export {
   PORT,
   JWT_SECRET,
@@ -23,5 +30,6 @@ export {
   OAUTH_CLIENT_ID,
   OAUTH_SECRET,
   STRIPE_SECRETKEY,
-  STRIPE_PRODUCT_ID
+  STRIPE_PRODUCT_ID,
+  redisClient
 }

@@ -13,6 +13,7 @@ const PostDetailModal = ({ post, isOpen, onClose }) => {
     const [loading, setLoading] = useState(true);
     const [newCommentText, setNewCommentText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [replyingTo, setReplyingTo] = useState(null);
 
     useEffect(() => {
         if (isOpen && post?._id) {
@@ -33,25 +34,29 @@ const PostDetailModal = ({ post, isOpen, onClose }) => {
             setLoading(true);
             const res = await getComments(post._id);
             if (res.success) {
-                // Determine top-level comments: 
-                // Any comment that is NOT present inside another comment's `reply` array.
-                // Since Mongoose returns a flat array populated with refs, we need to structure it.
                 const allComments = res.data;
+                const commentMap = new Map();
                 const replyIds = new Set();
 
-                // Find all IDs that are inner replies
+                // Build a lookup dictionary
                 allComments.forEach(c => {
-                    if (c.reply && c.reply.length > 0) {
-                        c.reply.forEach(r => {
-                            replyIds.add(r._id ? r._id.toString() : r.toString());
-                        });
-                    }
+                    // Ensure replies is always an array
+                    c.reply = c.reply || [];
+                    commentMap.set(c._id.toString(), c);
                 });
 
-                // Top-Level comments
+                // Wire up the relationships and collect children IDs
+                allComments.forEach(c => {
+                    c.reply = c.reply.map(r => {
+                        const rId = r._id ? r._id.toString() : r.toString();
+                        replyIds.add(rId);
+                        return commentMap.get(rId) || r;
+                    }).filter(r => typeof r === 'object' && r !== null);
+                });
+
+                // Top-Level comments are those that are never listed as someone else's reply
                 const topLevel = allComments.filter(c => !replyIds.has(c._id.toString()));
 
-                // For each top-level, their populated `reply` array is structured correctly by Mongoose
                 setComments(topLevel);
             }
         } catch (error) {
@@ -65,7 +70,12 @@ const PostDetailModal = ({ post, isOpen, onClose }) => {
         if (!newCommentText.trim() || isSubmitting) return;
         setIsSubmitting(true);
         try {
-            await addComment(post._id, newCommentText.trim(), user?._id || user?.id);
+            if (replyingTo) {
+                await addReply(replyingTo._id, newCommentText.trim(), user?._id || user?.id);
+                setReplyingTo(null);
+            } else {
+                await addComment(post._id, newCommentText.trim(), user?._id || user?.id);
+            }
             setNewCommentText('');
             fetchComments(); // Reload to get fresh tree
         } catch (error) {
@@ -74,13 +84,8 @@ const PostDetailModal = ({ post, isOpen, onClose }) => {
         setIsSubmitting(false);
     };
 
-    const handleReply = async (commentId, content) => {
-        try {
-            await addReply(commentId, content, user?._id || user?.id);
-            fetchComments(); // Reload to get fresh tree
-        } catch (error) {
-            console.error('Failed to reply', error);
-        }
+    const handleReply = (comment) => {
+        setReplyingTo(comment);
     };
 
     const handleLike = async (commentId) => {
@@ -96,7 +101,10 @@ const PostDetailModal = ({ post, isOpen, onClose }) => {
 
     return createPortal(
         <AnimatePresence>
-            <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+            <div
+                className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Backdrop Layer */}
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -169,25 +177,53 @@ const PostDetailModal = ({ post, isOpen, onClose }) => {
                     </div>
 
                     {/* Root Comment Input */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-black border-t border-gray-900 z-20">
-                        <div className="flex items-center gap-3 max-w-lg mx-auto bg-gray-900 p-1.5 rounded-full border border-gray-800 shadow-xl focus-within:border-pink-500/50 transition-colors">
-                            <div className="w-8 h-8 rounded-full bg-pink-500/20 flex-shrink-0 ml-1" />
-                            <input
-                                autoFocus
-                                type="text"
-                                value={newCommentText}
-                                onChange={(e) => setNewCommentText(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
-                                placeholder="Add a comment..."
-                                className="flex-1 bg-transparent border-none outline-none text-[13px] text-white placeholder-gray-500 min-w-0"
-                            />
-                            <button
-                                onClick={handlePostComment}
-                                disabled={!newCommentText.trim() || isSubmitting}
-                                className="w-9 h-9 flex items-center justify-center rounded-full bg-pink-500/20 text-pink-500 mr-0.5 disabled:opacity-50 hover:bg-pink-500 hover:text-white transition-all transform active:scale-95"
-                            >
-                                <HiPaperAirplane className="w-4 h-4 translate-x-px translate-y-px" />
-                            </button>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black border-t border-gray-900 z-20 flex flex-col">
+
+                        {/* Reply Indicator Badge */}
+                        <AnimatePresence>
+                            {replyingTo && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="px-4 py-2 bg-gray-900/50 border-b border-gray-800 flex items-center justify-between"
+                                >
+                                    <div className="flex items-center gap-2 overflow-hidden text-ellipsis">
+                                        <span className="text-[12px] text-gray-400 whitespace-nowrap">Replying to</span>
+                                        <span className="text-[12px] font-bold text-white truncate max-w-[150px]">
+                                            @{replyingTo.createdBy?.username || replyingTo.owner?.username || 'user'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={() => setReplyingTo(null)}
+                                        className="p-1 shrink-0 rounded-full hover:bg-gray-800 text-gray-500 hover:text-white transition-colors"
+                                    >
+                                        <HiX className="w-3.5 h-3.5" />
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <div className="p-4">
+                            <div className="flex items-center gap-3 w-full bg-gray-900 p-1.5 rounded-full border border-gray-800 shadow-xl focus-within:border-pink-500/50 transition-colors">
+                                <div className="w-8 h-8 rounded-full bg-pink-500/20 flex-shrink-0 ml-1" />
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={newCommentText}
+                                    onChange={(e) => setNewCommentText(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+                                    placeholder={replyingTo ? "Write a reply..." : "Add a comment..."}
+                                    className="flex-1 bg-transparent border-none outline-none text-[13px] text-white placeholder-gray-500 min-w-0"
+                                />
+                                <button
+                                    onClick={handlePostComment}
+                                    disabled={!newCommentText.trim() || isSubmitting}
+                                    className="w-9 h-9 flex items-center justify-center rounded-full bg-pink-500/20 text-pink-500 mr-0.5 disabled:opacity-50 hover:bg-pink-500 hover:text-white transition-all transform active:scale-95"
+                                >
+                                    <HiPaperAirplane className="w-4 h-4 translate-x-px translate-y-px" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </motion.div>
