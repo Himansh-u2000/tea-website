@@ -7,9 +7,14 @@ import { useAuth } from '../../context/AuthContext';
 import PostDetailModal from './PostDetailModal';
 
 /* ── Embla Image Carousel ── */
-const ImageCarousel = ({ images, title, onDoubleTap }) => {
+const ImageCarousel = ({ images: initialImages, title, onDoubleTap }) => {
+    const [validImages, setValidImages] = useState(initialImages);
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, dragFree: false });
     const [selectedIdx, setSelectedIdx] = useState(0);
+
+    const handleImageError = useCallback((failedSrc) => {
+        setValidImages(prev => prev.filter(src => src !== failedSrc));
+    }, []);
 
     const onSelect = useCallback(() => {
         if (!emblaApi) return;
@@ -23,6 +28,8 @@ const ImageCarousel = ({ images, title, onDoubleTap }) => {
         return () => emblaApi.off('select', onSelect);
     }, [emblaApi, onSelect]);
 
+    if (validImages.length === 0) return null;
+
     return (
         <div
             className="relative bg-dark-200 rounded-2xl overflow-hidden border border-gray-800"
@@ -30,7 +37,7 @@ const ImageCarousel = ({ images, title, onDoubleTap }) => {
         >
             <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex">
-                    {images.map((src, i) => (
+                    {validImages.map((src, i) => (
                         <div key={i} className="flex-[0_0_100%] min-w-0">
                             <img
                                 src={src}
@@ -38,20 +45,21 @@ const ImageCarousel = ({ images, title, onDoubleTap }) => {
                                 className="w-full aspect-[4/3] object-cover"
                                 loading="lazy"
                                 draggable={false}
+                                onError={() => handleImageError(src)}
                             />
                         </div>
                     ))}
                 </div>
             </div>
-            {images.length > 1 && (
+            {validImages.length > 1 && (
                 <>
                     <div className="absolute top-3 right-3 px-3 py-1 rounded-full text-[11px] font-bold text-white shadow-lg"
                         style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
                     >
-                        {selectedIdx + 1}/{images.length}
+                        {selectedIdx + 1}/{validImages.length}
                     </div>
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/30 px-2 py-1.5 rounded-full backdrop-blur-sm">
-                        {images.map((_, i) => (
+                        {validImages.map((_, i) => (
                             <button
                                 key={i}
                                 onClick={(e) => { e.stopPropagation(); emblaApi?.scrollTo(i); }}

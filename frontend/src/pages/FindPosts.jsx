@@ -136,14 +136,17 @@ const FindPosts = () => {
                                             alt={post.title || ''}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                             loading="lazy"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                e.target.nextSibling && (e.target.nextSibling.style.display = 'flex');
+                                            }}
                                         />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-dark-100 p-2">
-                                            <p className="text-[10px] text-muted text-center line-clamp-3 leading-tight">
-                                                {post.title || post.content || post.gossip || '☕'}
-                                            </p>
-                                        </div>
-                                    )}
+                                    ) : null}
+                                    <div className={`w-full h-full items-center justify-center bg-dark-100 p-2 ${img ? 'hidden' : 'flex'}`}>
+                                        <p className="text-[10px] text-muted text-center line-clamp-3 leading-tight">
+                                            {post.title || post.content || post.gossip || '☕'}
+                                        </p>
+                                    </div>
                                     {/* Hover overlay with stats */}
                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-4">
                                         <div className="flex items-center gap-1 text-white text-sm font-semibold">
