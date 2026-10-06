@@ -19,9 +19,9 @@ const connectDatabase = asyncHandler(async () => {
     console.log('Database version:', res.rows[0].version);
   } catch (err) {
     console.error('Error connecting to Neon:', err.message);
-  } finally {
-    await pool.end();
-  }
+  } 
 })
+
+export { pool }
 
 export default connectDatabase

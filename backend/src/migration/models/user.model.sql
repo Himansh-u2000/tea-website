@@ -1,15 +1,15 @@
-CREATE TABLE User(
+CREATE TABLE IF NOT EXISTS Users(
     id BIGSERIAL PRIMARY KEY,
     fullName VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    username VARCHAR(255) NOT NULL UNIQUE LOWERCASE,
+    username VARCHAR(255) NOT NULL UNIQUE,
     profilePhoto VARCHAR(255) DEFAULT 'defaultimageurl',
     phone VARCHAR(12),
-    gender VARCHAR(10) CHECK gender IN ('male', 'female'),
-    subscription BIGINT REFERENCES 'Subscription'(id),
-    posts BIGINT REFERENCES "Post"(id)[],
-    governmentIdType VARCHAR(200) CHECK governmentIdType IN ('passport', 'DL', 'aadhar'),
+    gender VARCHAR(10) CHECK (gender IN ('male', 'female')),
+    -- subscription BIGINT REFERENCES 'Subscription'(id),
+    -- posts BIGINT REFERENCES "Post"(id)[],
+    governmentIdType VARCHAR(200) CHECK (governmentIdType IN ('passport', 'DL', 'aadhar')),
     governmentIdNumber VARCHAR(255),
     governmentIdImage VARCHAR(255),
     status VARCHAR(20) CHECK(status IN ('verified', 'unverified')) DEFAULT 'unverified',
@@ -21,6 +21,6 @@ CREATE TABLE User(
     state varchar(255),
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
+);
 
 CREATE INDEX region ON User(region);

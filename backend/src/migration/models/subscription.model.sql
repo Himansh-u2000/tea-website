@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS Subscription(
     id BIGSERIAL PRIMARY KEY,
-    userId BIGINT REFERENCES "User"(id),
+    userId BIGINT REFERENCES "Users"(id),
     startDate TIMESTAMP NOT NULL,
     endDate TIMESTAMP NOT NULL,
     isActive BOOLEAN NOT NULL,
