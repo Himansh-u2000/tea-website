@@ -13,12 +13,25 @@ const OAUTH_SECRET = process.env.OAUTH_SECRET;
 const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID;
 const STRIPE_SECRETKEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_PRODUCT_ID = process.env.STRIPE_PRODUCT_ID;
+const DB_HOST = process.env.DB_HOST;
+const DB_USERNAME = process.env.DB_USERNAME;
+const DB_PASSWORD = process.env.DB_PASSWORD;
+const DB_PORT = process.env.DB_PORT;
 
 
-const redisClient = await createClient()
+const redisClient = await createClient({
+    username: DB_USERNAME,
+    password: DB_PASSWORD,
+    socket: {
+        host: DB_HOST,
+        port: DB_PORT
+    }
+})
   .on("error", (err) => console.log("Redis Client Error", err))
   .on("connect", () => console.log("Redis Client Connected"))
   .connect();
+
+  
 
 export {
   PORT,
