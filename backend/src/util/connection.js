@@ -1,6 +1,7 @@
 import mongoose from "mongoose"
 import asyncHandler from "express-async-handler"
 import { Pool } from "pg"
+import { DB_URL } from "../conf/index.js"
 
 // const connectDatabase = asyncHandler(async (DB_URL) => {
 //   mongoose
@@ -9,9 +10,9 @@ import { Pool } from "pg"
 //     .catch((error) => console.log(`Error while connecting Database ${error}`))
 // })
 
+const pool = new Pool({ connectionString: DB_URL })
 
-const connectDatabase = asyncHandler(async (DB_URL) => {
-  const pool = new Pool({ connectionString: DB_URL })
+const connectDatabase = asyncHandler(async () => {
   try {
     const res = await pool.query('SELECT version()');
     console.log('Successfully connected to Neon DB!');

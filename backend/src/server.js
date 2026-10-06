@@ -1,22 +1,22 @@
-import express from "express"
-import { PORT, DB_URL, FRONTEND_URL } from "./conf/index.js"
-import connectDatabase from "./util/connection.js";
-import authRouter from "./routes/auth.router.js";
-import userRouter from "./routes/user.router.js";
-import commentRouter from "./routes/comment.router.js";
-import { postRouter } from "./routes/post.router.js";
-import errorHandler from "./middleware/errorHandler.middleware.js";
-import cors from "cors"
-import rateLimit from "express-rate-limit"
-import { paymentRouter } from "./routes/payment.route.js";
+import cors from "cors";
+import express from "express";
+import rateLimit from "express-rate-limit";
 import nodeCron from "node-cron";
+import { FRONTEND_URL, PORT } from "./conf/index.js";
 import { syncClaps } from "./cron/syncClaps.js";
+import errorHandler from "./middleware/errorHandler.middleware.js";
+import authRouter from "./routes/auth.router.js";
+import commentRouter from "./routes/comment.router.js";
+import { paymentRouter } from "./routes/payment.route.js";
+import { postRouter } from "./routes/post.router.js";
+import userRouter from "./routes/user.router.js";
+import connectDatabase from "./util/connection.js";
 
 const app = express();
 const port = PORT || 5000;
 
 // connect with Database
-connectDatabase(DB_URL);
+connectDatabase();
 
 app.use(cors({
     origin: FRONTEND_URL || "http://localhost:5173",
